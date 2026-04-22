@@ -1,0 +1,41 @@
+{
+    "name": "ta-pos-frontend",
+    "version": "0.1.0",
+    "scripts": {
+        "dev": "vite",
+        "build": "npm run type-check && npm run build-only",
+        "preview": "vite preview",
+        "build-only": "vite build",
+        "type-check": "vue-tsc --noEmit",
+        "lint": "eslint --fix . --ext .vue,.js,.ts,.tsx --fix --ignore-path .gitignore"
+    },
+    "dependencies": {
+        "@primeuix/themes": "^2.0.0",
+        "axios": "^1.15.2",
+        "chart.js": "3.3.2",
+        "primeicons": "^7.0.0",
+        "primevue": "^4.5.4",
+        "tailwindcss-primeui": "^0.6.0",
+        "vue": "^3.4.34",
+        "vue-router": "^4.4.0"
+    },
+    "devDependencies": {
+        "@primevue/auto-import-resolver": "^4.3.1",
+        "@rushstack/eslint-patch": "^1.8.0",
+        "@tailwindcss/vite": "^4.1.17",
+        "@types/node": "^25.6.0",
+        "@vitejs/plugin-vue": "^6.0.1",
+        "@vue/eslint-config-prettier": "^9.0.0",
+        "@vue/tsconfig": "^0.9.1",
+        "eslint": "^8.57.0",
+        "eslint-plugin-vue": "^9.23.0",
+        "prettier": "^3.2.5",
+        "sass": "^1.55.0",
+        "tailwindcss": "^4.1.17",
+        "typescript": "^6.0.3",
+        "unplugin-vue-components": "^0.27.3",
+        "vite": "^7.1.12",
+        "vite-plugin-vue-devtools": "^8.1.1",
+        "vue-tsc": "^3.2.7"
+    }
+}
