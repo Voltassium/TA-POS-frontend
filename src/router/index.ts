@@ -108,6 +108,26 @@ const router = createRouter({
                     component: () => import('@/views/pages/Crud.vue')
                 },
                 {
+                    path: '/pages/category',
+                    name: 'category',
+                    component: () => import('@/views/pages/Category.vue')
+                },
+                {
+                    path: '/pages/product',
+                    name: 'product',
+                    component: () => import('@/views/pages/Product.vue')
+                },
+                {
+                    path: '/pages/order',
+                    name: 'order',
+                    component: () => import('@/views/pages/Order.vue')
+                },
+                {
+                    path: '/kitchen',
+                    name: 'kitchen',
+                    component: () => import('@/views/pages/Kitchen.vue')
+                },
+                {
                     path: '/start/documentation',
                     name: 'documentation',
                     component: () => import('@/views/pages/Documentation.vue')
@@ -141,6 +161,20 @@ const router = createRouter({
             component: () => import('@/views/pages/auth/Error.vue')
         }
     ]
+});
+
+router.beforeEach((to, from) => {
+    const isAuthenticated = !!localStorage.getItem('access_token');
+
+    // If trying to access a protected route and not logged in, redirect to login
+    if (to.path !== '/auth/login' && !isAuthenticated) {
+        return { path: '/auth/login' };
+    }
+
+    // If trying to access the login page while already logged in, redirect to dashboard
+    if (to.path === '/auth/login' && isAuthenticated) {
+        return { path: '/' };
+    }
 });
 
 export default router;

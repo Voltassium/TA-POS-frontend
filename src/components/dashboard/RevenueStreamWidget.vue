@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { useLayout } from '@/layout/composables/layout';
 import { onMounted, ref, watch } from 'vue';
+import type { SalesData } from '@/api/statisticsApi';
+
+const props = defineProps<{
+    salesChart: SalesData[]
+}>();
 
 const { layoutConfig, isDarkTheme } = useLayout();
 
@@ -10,33 +15,17 @@ const chartOptions = ref(null);
 function setChartData() {
     const documentStyle = getComputedStyle(document.documentElement);
 
+    const labels = props.salesChart.map(s => s.date);
+    const data = props.salesChart.map(s => s.total);
+
     return {
-        labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+        labels: labels,
         datasets: [
             {
                 type: 'bar',
-                label: 'Subscriptions',
+                label: 'Penjualan (IDR)',
                 backgroundColor: documentStyle.getPropertyValue('--p-primary-400'),
-                data: [4000, 10000, 15000, 4000],
-                barThickness: 32
-            },
-            {
-                type: 'bar',
-                label: 'Advertising',
-                backgroundColor: documentStyle.getPropertyValue('--p-primary-300'),
-                data: [2100, 8400, 2400, 7500],
-                barThickness: 32
-            },
-            {
-                type: 'bar',
-                label: 'Affiliate',
-                backgroundColor: documentStyle.getPropertyValue('--p-primary-200'),
-                data: [4100, 5200, 3400, 7400],
-                borderRadius: {
-                    topLeft: 8,
-                    topRight: 8
-                },
-                borderSkipped: true,
+                data: data,
                 barThickness: 32
             }
         ]
@@ -77,20 +66,20 @@ function setChartOptions() {
     };
 }
 
-watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme], () => {
-    chartData.value = setChartData();
-    chartOptions.value = setChartOptions();
-});
+watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () => props.salesChart], () => {
+    chartData.value = setChartData() as any;
+    chartOptions.value = setChartOptions() as any;
+}, { deep: true });
 
 onMounted(() => {
-    chartData.value = setChartData();
-    chartOptions.value = setChartOptions();
+    chartData.value = setChartData() as any;
+    chartOptions.value = setChartOptions() as any;
 });
 </script>
 
 <template>
     <div class="card">
-        <div class="font-semibold text-xl mb-4">Revenue Stream</div>
+        <div class="font-semibold text-xl mb-4">Grafik Penjualan Harian</div>
         <Chart type="bar" :data="chartData" :options="chartOptions" class="h-80" />
     </div>
 </template>
