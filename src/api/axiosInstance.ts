@@ -10,7 +10,7 @@ const api = axios.create({
     }
 });
 
-// Request interceptor — attach access token
+// ─── Request interceptor — attach access token ───────────────────────────────
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem('access_token');
@@ -22,7 +22,7 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response interceptor — handle 401 / token refresh
+// ─── Response interceptor — handle 401 / token refresh ───────────────────────
 let isRefreshing = false;
 let failedQueue: Array<{
     resolve: (value: unknown) => void;
@@ -45,6 +45,7 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+        // Only attempt refresh on 401 responses that haven't been retried yet
         if (error.response?.status === 401 && !originalRequest._retry) {
             const accessToken = localStorage.getItem('access_token');
             const refreshToken = localStorage.getItem('refresh_token');
@@ -55,6 +56,7 @@ api.interceptors.response.use(
                 return Promise.reject(error);
             }
 
+            // If a refresh is already in progress, queue this request
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
@@ -75,6 +77,7 @@ api.interceptors.response.use(
             }
 
             try {
+                // Use a standalone axios call to avoid the interceptor re-triggering
                 const { data } = await axios.post(`${API_BASE_URL}/authentications/refresh-token`, {
                     refresh_token: refreshToken
                 });

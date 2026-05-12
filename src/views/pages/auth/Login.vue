@@ -23,10 +23,12 @@ const handleLogin = async () => {
     loading.value = true;
     try {
         await authStore.login(email.value, password.value);
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Login berhasil, selamat datang!', life: 2000 });
         router.push('/');
     } catch (error: any) {
-        const errorMsg = error.response?.data?.error?.message || error.response?.data?.message || 'Login gagal. Periksa kembali kredensial Anda.';
-        toast.add({ severity: 'error', summary: 'Error', detail: errorMsg, life: 3000 });
+        // Backend error shape: { status, message, error }
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Login gagal. Periksa kembali kredensial Anda.';
+        toast.add({ severity: 'error', summary: 'Login Gagal', detail: errorMsg, life: 4000 });
     } finally {
         loading.value = false;
     }
@@ -41,16 +43,16 @@ const handleLogin = async () => {
             <div style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, var(--primary-color) 10%, rgba(33, 150, 243, 0) 30%)">
                 <div class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20" style="border-radius: 53px">
                     <div class="text-center mb-8">
-                        <div class="text-surface-900 dark:text-surface-0 text-3xl font-bold mb-4">POS</div>
+                        <div class="text-surface-900 dark:text-surface-0 text-3xl font-bold mb-4">SeliPOS</div>
                         <span class="text-muted-color font-medium">Masuk ke akun Anda untuk melanjutkan</span>
                     </div>
 
                     <form @submit.prevent="handleLogin">
                         <label for="email1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Email</label>
-                        <InputText id="email1" type="email" placeholder="Alamat email" class="w-full md:w-[30rem] mb-8" v-model="email" />
+                        <InputText id="email1" type="email" placeholder="Alamat email" class="w-full md:w-[30rem] mb-8" v-model="email" :disabled="loading" />
 
                         <label for="password1" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Kata Sandi</label>
-                        <Password id="password1" v-model="password" placeholder="Kata Sandi" :toggleMask="true" class="mb-4" fluid :feedback="false"></Password>
+                        <Password id="password1" v-model="password" placeholder="Kata Sandi" :toggleMask="true" class="mb-4" fluid :feedback="false" :disabled="loading"></Password>
 
                         <div class="flex items-center justify-between mt-2 mb-8 gap-8">
                             <div class="flex items-center">

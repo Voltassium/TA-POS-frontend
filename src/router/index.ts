@@ -163,17 +163,23 @@ const router = createRouter({
     ]
 });
 
-router.beforeEach((to, from) => {
+const publicPaths = ['/auth/login', '/auth/access', '/auth/error', '/pages/notfound'];
+
+router.beforeEach((to) => {
     const isAuthenticated = !!localStorage.getItem('access_token');
 
-    // If trying to access a protected route and not logged in, redirect to login
-    if (to.path !== '/auth/login' && !isAuthenticated) {
-        return { path: '/auth/login' };
+    // Allow public routes without authentication
+    if (publicPaths.includes(to.path)) {
+        // If already logged in, redirect away from login page to dashboard
+        if (to.path === '/auth/login' && isAuthenticated) {
+            return { path: '/' };
+        }
+        return;
     }
 
-    // If trying to access the login page while already logged in, redirect to dashboard
-    if (to.path === '/auth/login' && isAuthenticated) {
-        return { path: '/' };
+    // Protected route — require authentication
+    if (!isAuthenticated) {
+        return { path: '/auth/login' };
     }
 });
 
