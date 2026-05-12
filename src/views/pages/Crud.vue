@@ -4,18 +4,32 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
 
+interface Product {
+    id: string;
+    code: string;
+    name: string;
+    description: string;
+    image: string;
+    price: number;
+    category: string;
+    quantity: number;
+    inventoryStatus: string;
+    rating: number;
+    [key: string]: any;
+}
+
 onMounted(() => {
     ProductService.getProducts().then((data) => (products.value = data));
 });
 
 const toast = useToast();
 const dt = ref();
-const products = ref();
+const products = ref<Product[]>([]);
 const productDialog = ref(false);
 const deleteProductDialog = ref(false);
 const deleteProductsDialog = ref(false);
-const product = ref({});
-const selectedProducts = ref();
+const product = ref<Partial<Product>>({});
+const selectedProducts = ref<Product[]>();
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
@@ -47,15 +61,17 @@ function saveProduct() {
 
     if (product?.value.name?.trim()) {
         if (product.value.id) {
-            product.value.inventoryStatus = product.value.inventoryStatus.value ? product.value.inventoryStatus.value : product.value.inventoryStatus;
-            products.value[findIndexById(product.value.id)] = product.value;
+            const status = product.value.inventoryStatus as any;
+            product.value.inventoryStatus = status?.value ? status.value : product.value.inventoryStatus;
+            products.value[findIndexById(product.value.id)] = product.value as Product;
             toast.add({ severity: 'success', summary: 'Successful', detail: 'Product Updated', life: 3000 });
         } else {
             product.value.id = createId();
             product.value.code = createId();
             product.value.image = 'product-placeholder.svg';
-            product.value.inventoryStatus = product.value.inventoryStatus ? product.value.inventoryStatus.value : 'INSTOCK';
-            products.value.push(product.value);
+            const status = product.value.inventoryStatus as any;
+            product.value.inventoryStatus = status?.value ? status.value : 'INSTOCK';
+            products.value.push(product.value as Product);
             toast.add({ severity: 'success', summary: 'Successful', detail: 'Product Created', life: 3000 });
         }
 
@@ -144,7 +160,7 @@ function getStatusLabel(status) {
                 </template>
 
                 <template #end>
-                    <Button label="Export" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" />
+                    <Button label="Export" icon="pi pi-upload" severity="secondary" @click="exportCSV()" />
                 </template>
             </Toolbar>
 

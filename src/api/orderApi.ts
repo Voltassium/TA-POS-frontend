@@ -6,6 +6,9 @@ export interface Order {
     table_id: number | null;
     staff_id: number;
     total_amount: number;
+    discount_type: string | null;
+    discount_value: number;
+    discount_amount: number;
     status: 'Open' | 'Paid' | 'Cancelled' | 'Ready';
     created_at: string;
     updated_at: string;
@@ -35,7 +38,8 @@ export interface Payment {
 }
 
 export interface OrderListParams extends PaginationParams {
-    status?: 'Open' | 'Paid' | 'Cancelled' | 'Ready';
+    status?: OrderStatus;
+    exclude_status?: OrderStatus;
 }
 
 export interface CreateOrderPayload {

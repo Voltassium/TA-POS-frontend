@@ -3,23 +3,30 @@ import { ref } from 'vue';
 import AppMenuItem from './AppMenuItem.vue';
 
 const model = ref<any[]>([
+    // {
+    //     label: 'Beranda',
+    //     items: [
+    //         {
+    //             label: 'Dashboard',
+    //             icon: 'pi pi-fw pi-home',
+    //             to: '/'
+    //         }
+    //     ]
+    // },
     {
-        label: 'Beranda',
+        label: 'Aplikasi POS',
         items: [
             {
                 label: 'Dashboard',
                 icon: 'pi pi-fw pi-home',
                 to: '/'
-            }
-        ]
-    },
-    {
-        label: 'Aplikasi POS',
-        items: [
+            },
             { label: 'Dapur (KDS)', icon: 'pi pi-fw pi-shop', to: '/kitchen' },
             { label: 'Kasir & Penjualan', icon: 'pi pi-fw pi-wallet', to: '/pages/order' },
             { label: 'Manajemen Produk', icon: 'pi pi-fw pi-box', to: '/pages/product' },
-            { label: 'Kategori Menu', icon: 'pi pi-fw pi-tags', to: '/pages/category' }
+            { label: 'Kategori Menu', icon: 'pi pi-fw pi-tags', to: '/pages/category' },
+            { label: 'Riwayat Pesanan', icon: 'pi pi-fw pi-history', to: '/pages/order-history' },
+            { label: 'Riwayat Stok', icon: 'pi pi-fw pi-list', to: '/pages/stock-history' }
         ]
     }
 ]);

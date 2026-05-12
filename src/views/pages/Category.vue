@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useCategoryStore } from '@/stores/categoryStore';
 import type { Category } from '@/api/categoryApi';
+import { useCategoryStore } from '@/stores/categoryStore';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';

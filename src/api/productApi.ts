@@ -8,6 +8,7 @@ export interface Product {
     name: string;
     description: string;
     price: number;
+    stock: number;
     is_available: boolean;
     created_at: string;
     updated_at: string;
@@ -18,6 +19,7 @@ export interface ProductCreatePayload {
     name: string;
     description?: string;
     price: number;
+    stock?: number;
     is_available?: boolean;
 }
 

@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import type { Order } from '@/api/orderApi';
+import type { PaymentCreatePayload } from '@/api/paymentApi';
+import { paymentApi } from '@/api/paymentApi';
+import '@/assets/print.css';
 import { useOrderStore } from '@/stores/orderStore';
 import { useProductStore } from '@/stores/productStore';
-import { paymentApi } from '@/api/paymentApi';
-import type { PaymentCreatePayload } from '@/api/paymentApi';
-import type { Order } from '@/api/orderApi';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref, computed } from 'vue';
-import '@/assets/print.css';
+import { computed, onMounted, ref } from 'vue';
 
 const toast = useToast();
 const orderStore = useOrderStore();
@@ -75,6 +75,8 @@ async function loadOrders() {
         const params: Record<string, any> = { ...lazyParams.value };
         if (statusFilter.value) {
             params.status = statusFilter.value;
+        } else {
+            params.exclude_status = 'Ready';
         }
         await orderStore.fetchOrders(params);
     } catch (error) {
@@ -370,25 +372,46 @@ function printReceipt() {
                             v-model="selectedProduct"
                             :options="productOptions"
                             optionLabel="label"
-                            placeholder="Pilih Produk"
+                            placeholder="Cari Produk..."
                             class="flex-1"
                             filter
-                        />
-                        <InputNumber v-model="selectedQuantity" :min="1" placeholder="Qty" style="width: 80px" />
-                        <Button icon="pi pi-plus" severity="secondary" @click="addProductToOrder" :disabled="!selectedProduct" />
+                        >
+                            <template #value="slotProps">
+                                <div v-if="slotProps.value" class="flex items-center">
+                                    <div>{{ slotProps.value.product_name }} - {{ formatCurrency(slotProps.value.price) }}</div>
+                                </div>
+                                <span v-else>
+                                    {{ slotProps.placeholder }}
+                                </span>
+                            </template>
+                            <template #option="slotProps">
+                                <div class="flex items-center justify-between w-full">
+                                    <div>{{ slotProps.option.product_name }}</div>
+                                    <div class="font-bold text-primary">{{ formatCurrency(slotProps.option.price) }}</div>
+                                </div>
+                            </template>
+                        </Select>
+                        <Button icon="pi pi-plus" severity="secondary" label="Tambah" @click="addProductToOrder" :disabled="!selectedProduct" />
                     </div>
 
                     <transition-group name="list" tag="div">
-                        <div v-for="(item, index) in orderProducts" :key="item.product_id" class="flex items-center justify-between p-3 mb-2 border border-surface-200 dark:border-surface-700 rounded-lg transition-all duration-300">
+                        <div v-for="(item, index) in orderProducts" :key="item.product_id" class="flex items-center justify-between p-3 mb-2 border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 rounded-lg transition-all duration-300">
                             <div class="flex-1">
-                                <span class="font-semibold">{{ item.product_name }}</span>
+                                <span class="font-semibold text-lg">{{ item.product_name }}</span>
                                 <div class="text-sm text-surface-500 mt-1">
-                                    {{ item.quantity }}x {{ formatCurrency(item.price) }}
+                                    @ {{ formatCurrency(item.price) }} / item
                                 </div>
                             </div>
-                            <div class="flex items-center gap-3">
-                                <span class="font-semibold text-primary">{{ formatCurrency(item.price * item.quantity) }}</span>
-                                <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="removeProductFromOrder(index)" />
+                            <div class="flex items-center gap-4">
+                                <div class="flex items-center gap-2 bg-surface-100 dark:bg-surface-700 rounded-full p-1">
+                                    <Button icon="pi pi-minus" severity="secondary" rounded text size="small" @click="item.quantity > 1 ? item.quantity-- : null" :disabled="item.quantity <= 1" class="h-8 w-8 p-0" />
+                                    <span class="font-bold w-6 text-center">{{ item.quantity }}</span>
+                                    <Button icon="pi pi-plus" severity="secondary" rounded text size="small" @click="item.quantity++" class="h-8 w-8 p-0" />
+                                </div>
+                                <div class="w-24 text-right">
+                                    <span class="font-semibold text-primary">{{ formatCurrency(item.price * item.quantity) }}</span>
+                                </div>
+                                <Button icon="pi pi-trash" text rounded severity="danger" @click="removeProductFromOrder(index)" v-tooltip.top="'Hapus Item'" />
                             </div>
                         </div>
                     </transition-group>
@@ -552,7 +575,7 @@ function printReceipt() {
                         <div v-for="item in orderStore.selectedOrder.items" :key="item.product_id" class="receipt-item">
                             <div>
                                 {{ item.product_name || `Produk #${item.product_id}` }}<br>
-                                {{ item.quantity }} x {{ formatCurrency(item.unit_price) }}
+                                {{ item.quantity }} x {{ formatCurrency(item.price) }}
                             </div>
                             <div>
                                 <br>{{ formatCurrency(item.subtotal) }}

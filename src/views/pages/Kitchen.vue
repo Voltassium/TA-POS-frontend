@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useOrderStore } from '@/stores/orderStore';
-import { onMounted, ref, onUnmounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 const toast = useToast();
 const orderStore = useOrderStore();

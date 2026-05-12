@@ -174,6 +174,7 @@ function exportCSV() {
                         {{ formatCurrency(slotProps.data.price) }}
                     </template>
                 </Column>
+                <Column field="stock" header="Stok" sortable style="min-width: 8rem"></Column>
                 <Column field="is_available" header="Ketersediaan" sortable style="min-width: 8rem">
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.is_available ? 'Tersedia' : 'Habis'" :severity="slotProps.data.is_available ? 'success' : 'danger'" />
@@ -219,12 +220,16 @@ function exportCSV() {
                     <small v-if="submitted && !product.category_id" class="text-red-500">Kategori wajib dipilih.</small>
                 </div>
                 <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-6">
+                    <div class="col-span-4">
                         <label for="price" class="block font-bold mb-3">Harga</label>
                         <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :invalid="submitted && (product.price == null || product.price < 0)" fluid />
                         <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga wajib diisi.</small>
                     </div>
-                    <div class="col-span-6">
+                    <div class="col-span-4">
+                        <label for="stock" class="block font-bold mb-3">Stok</label>
+                        <InputNumber id="stock" v-model="product.stock" fluid />
+                    </div>
+                    <div class="col-span-4">
                         <label for="is_available" class="block font-bold mb-3">Ketersediaan</label>
                         <ToggleSwitch id="is_available" v-model="product.is_available" />
                     </div>
