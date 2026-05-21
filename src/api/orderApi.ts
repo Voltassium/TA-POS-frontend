@@ -22,6 +22,7 @@ export interface OrderItem {
     quantity: number;
     price: number;
     subtotal: number;
+    served_qty: number;
 }
 
 export interface OrderDetail extends Order {
@@ -83,6 +84,13 @@ export const orderApi = {
 
     async removeItem(orderId: number, itemId: number) {
         const { data } = await api.delete<{ data: OrderDetail }>(`/orders/${orderId}/items/${itemId}`);
+        return data.data;
+    },
+
+    async updateItemServedQty(orderId: number, itemId: number, servedQty: number) {
+        const { data } = await api.patch<{ data: OrderDetail }>(`/orders/${orderId}/items/${itemId}/served`, {
+            served_qty: servedQty
+        });
         return data.data;
     }
 };

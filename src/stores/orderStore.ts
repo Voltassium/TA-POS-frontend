@@ -69,6 +69,12 @@ export const useOrderStore = defineStore('order', {
             const updated = await orderApi.removeItem(orderId, itemId);
             this.selectedOrder = updated;
             return updated;
+        },
+
+        async updateItemServedQty(orderId: number, itemId: number, servedQty: number) {
+            const updated = await orderApi.updateItemServedQty(orderId, itemId, servedQty);
+            this.selectedOrder = updated;
+            return updated;
         }
     }
 });
