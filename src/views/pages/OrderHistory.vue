@@ -97,9 +97,9 @@ onMounted(() => {
                     </div>
                 </template>
                 <template #empty> Tidak ada pesanan ditemukan. </template>
-                <Column field="id" header="ID Pesanan" style="min-width: 10rem">
+                <Column field="order_code" header="Kode Pesanan" style="min-width: 12rem">
                     <template #body="{ data }">
-                        #{{ data.id }}
+                        {{ data.order_code }}
                     </template>
                 </Column>
                 <Column field="total_amount" header="Total Harga" style="min-width: 12rem">

@@ -161,6 +161,11 @@ const router = createRouter({
             component: () => import('@/views/pages/auth/Login.vue')
         },
         {
+            path: '/auth/register',
+            name: 'register',
+            component: () => import('@/views/pages/auth/Register.vue')
+        },
+        {
             path: '/auth/access',
             name: 'accessDenied',
             component: () => import('@/views/pages/auth/Access.vue')
@@ -173,15 +178,15 @@ const router = createRouter({
     ]
 });
 
-const publicPaths = ['/auth/login', '/auth/access', '/auth/error', '/pages/notfound'];
+const publicPaths = ['/auth/login', '/auth/register', '/auth/access', '/auth/error', '/pages/notfound'];
 
 router.beforeEach((to) => {
     const isAuthenticated = !!localStorage.getItem('access_token');
 
     // Allow public routes without authentication
     if (publicPaths.includes(to.path)) {
-        // If already logged in, redirect away from login page to dashboard
-        if (to.path === '/auth/login' && isAuthenticated) {
+        // If already logged in, redirect away from login/register page to dashboard
+        if ((to.path === '/auth/login' || to.path === '/auth/register') && isAuthenticated) {
             return { path: '/' };
         }
         return;

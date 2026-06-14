@@ -1,5 +1,5 @@
 import api from './axiosInstance';
-import type { PaginationParams, PaginatedResponse } from './categoryApi';
+import type { PaginatedResponse, PaginationParams } from './categoryApi';
 
 export interface Product {
     id: number;

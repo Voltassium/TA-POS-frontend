@@ -1,15 +1,18 @@
 import api from './axiosInstance';
 import type { PaginationParams, PaginatedResponse } from './categoryApi';
 
+export type OrderStatus = 'Open' | 'Paid' | 'Cancelled' | 'Ready';
+
 export interface Order {
     id: number;
+    order_code: string;
     table_id: number | null;
     staff_id: number;
     total_amount: number;
     discount_type: string | null;
     discount_value: number;
     discount_amount: number;
-    status: 'Open' | 'Paid' | 'Cancelled' | 'Ready';
+    status: OrderStatus;
     created_at: string;
     updated_at: string;
     items?: OrderItem[];
@@ -64,7 +67,7 @@ export const orderApi = {
         return data.data;
     },
 
-    async updateStatus(id: number, status: 'Open' | 'Paid' | 'Cancelled' | 'Ready') {
+    async updateStatus(id: number, status: OrderStatus) {
         const { data } = await api.patch(`/orders/${id}/status`, { status });
         return data;
     },

@@ -61,7 +61,12 @@ const handleLogin = async () => {
                             </div>
                             <!-- <span class="font-medium no-underline ml-2 text-right cursor-pointer text-primary">Lupa kata sandi?</span> -->
                         </div>
-                        <Button type="submit" label="Masuk" class="w-full" :loading="loading"></Button>
+                        <Button type="submit" label="Masuk" class="w-full mb-4" :loading="loading"></Button>
+
+                        <div class="text-center">
+                            <span class="text-muted-color">Belum punya akun? </span>
+                            <router-link to="/auth/register" class="font-medium text-primary no-underline cursor-pointer">Daftar</router-link>
+                        </div>
                     </form>
                 </div>
             </div>

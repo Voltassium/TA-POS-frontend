@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia';
 import { orderApi } from '@/api/orderApi';
 import type { Order, OrderDetail, OrderListParams, CreateOrderPayload } from '@/api/orderApi';
+import { saveOfflineOrder, getOfflineOrderCount } from '@/utils/offlineDb';
+import { syncOfflineOrders } from '@/utils/offlineSync';
+import type { AxiosError } from 'axios';
 
 interface OrderState {
     orders: Order[];
@@ -9,6 +12,7 @@ interface OrderState {
     currentPage: number;
     loading: boolean;
     selectedOrder: OrderDetail | null;
+    offlineCount: number;
 }
 
 export const useOrderStore = defineStore('order', {
@@ -18,7 +22,8 @@ export const useOrderStore = defineStore('order', {
         totalPages: 0,
         currentPage: 1,
         loading: false,
-        selectedOrder: null
+        selectedOrder: null,
+        offlineCount: 0
     }),
 
     actions: {
@@ -46,9 +51,26 @@ export const useOrderStore = defineStore('order', {
             }
         },
 
-        async createOrder(payload: CreateOrderPayload) {
-            const created = await orderApi.create(payload);
-            return created;
+        /**
+         * Create an order. If the network is unavailable, the order is
+         * queued in IndexedDB and will be synced when connectivity returns.
+         * Returns { offline: true } when saved offline, or the created order.
+         */
+        async createOrder(payload: CreateOrderPayload): Promise<OrderDetail | { offline: true }> {
+            try {
+                const created = await orderApi.create(payload);
+                return created;
+            } catch (err) {
+                const axiosErr = err as AxiosError;
+                // Network error (no response) — save offline
+                if (!axiosErr.response) {
+                    await saveOfflineOrder(payload);
+                    await this.refreshOfflineCount();
+                    return { offline: true };
+                }
+                // Server returned an actual error (4xx/5xx) — re-throw
+                throw err;
+            }
         },
 
         async updateOrderStatus(id: number, status: 'Open' | 'Paid' | 'Cancelled' | 'Ready') {
@@ -75,6 +97,22 @@ export const useOrderStore = defineStore('order', {
             const updated = await orderApi.updateItemServedQty(orderId, itemId, servedQty);
             this.selectedOrder = updated;
             return updated;
+        },
+
+        /** Refresh the count of pending offline orders from IndexedDB. */
+        async refreshOfflineCount() {
+            this.offlineCount = await getOfflineOrderCount();
+        },
+
+        /**
+         * Sync all pending offline orders to the backend.
+         * Returns the number of successfully synced and failed orders.
+         */
+        async syncPendingOrders() {
+            const result = await syncOfflineOrders();
+            await this.refreshOfflineCount();
+            return result;
         }
     }
 });
+

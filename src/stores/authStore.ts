@@ -62,6 +62,14 @@ export const useAuthStore = defineStore('auth', {
 
     actions: {
         /**
+         * Register a new user account via POST /v1/authentications/register.
+         * Does NOT auto-login — the user is redirected to the login page after.
+         */
+        async register(email: string, password: string, role?: 'admin' | 'staff') {
+            return await authApi.register(email, password, role);
+        },
+
+        /**
          * Authenticate against POST /v1/authentications/login.
          * Stores both tokens in localStorage and Pinia state.
          */

@@ -59,7 +59,7 @@ async function incrementServed(order: OrderDetail, item: OrderItem) {
         // If order became Ready, remove it from the list
         if (updated.status === 'Ready') {
             orders.value = orders.value.filter((o) => o.id !== order.id);
-            toast.add({ severity: 'success', summary: 'Selesai!', detail: `Pesanan #${order.id} selesai dan siap disajikan!`, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Selesai!', detail: `Pesanan ${order.order_code} selesai dan siap disajikan!`, life: 3000 });
         } else {
             // Update the order in-place
             const idx = orders.value.findIndex((o) => o.id === order.id);
@@ -91,7 +91,7 @@ async function markAllServed(order: OrderDetail) {
             }
         }
         orders.value = orders.value.filter((o) => o.id !== order.id);
-        toast.add({ severity: 'success', summary: 'Selesai!', detail: `Pesanan #${order.id} selesai dan siap disajikan!`, life: 3000 });
+        toast.add({ severity: 'success', summary: 'Selesai!', detail: `Pesanan ${order.order_code} selesai dan siap disajikan!`, life: 3000 });
     } catch {
         toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memperbarui status pesanan', life: 3000 });
         await loadKitchenOrders();
@@ -120,7 +120,7 @@ async function markAllServed(order: OrderDetail) {
                 <template #title>
                     <div class="flex justify-between items-center bg-orange-100 dark:bg-orange-900/30 p-3 -mx-4 -mt-4 mb-2 rounded-t-lg">
                         <span class="text-orange-600 dark:text-orange-400 font-bold">Meja: {{ ord.table_id ?? '-' }}</span>
-                        <span class="text-sm">#{{ ord.id }}</span>
+                        <span class="text-sm">{{ ord.order_code }}</span>
                     </div>
                 </template>
                 <template #content>

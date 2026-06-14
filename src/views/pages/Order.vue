@@ -202,9 +202,14 @@ async function saveOrder() {
             }))
         };
 
-        await orderStore.createOrder(payload);
+        const result = await orderStore.createOrder(payload);
 
-        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Pesanan berhasil dibuat', life: 3000 });
+        if ('offline' in result && result.offline) {
+            toast.add({ severity: 'info', summary: 'Tersimpan Offline', detail: 'Pesanan disimpan lokal dan akan dikirim saat koneksi kembali.', life: 5000 });
+        } else {
+            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Pesanan berhasil dibuat', life: 3000 });
+        }
+
         orderDialog.value = false;
         order.value = {};
         await loadOrders();
@@ -304,7 +309,7 @@ function printReceipt() {
                     <Card class="h-full flex flex-col">
                         <template #title>
                             <div class="flex justify-between items-center">
-                                <span>#{{ ord.id }}</span>
+                                <span>{{ ord.order_code }}</span>
                                 <Tag :value="getStatusLabel(ord.status)" :severity="getStatusSeverity(ord.status)" />
                             </div>
                         </template>
@@ -569,7 +574,7 @@ function printReceipt() {
                     <div class="receipt-container">
                         <div class="receipt-header">
                             <h2>Sistem POS</h2>
-                            <p>Pesanan #{{ orderStore.selectedOrder.id }} - Meja {{ formatTableId(orderStore.selectedOrder.table_id) }}</p>
+                            <p>Pesanan {{ orderStore.selectedOrder.order_code }} - Meja {{ formatTableId(orderStore.selectedOrder.table_id) }}</p>
                             <p>{{ new Date(orderStore.selectedOrder.created_at).toLocaleString('id-ID') }}</p>
                         </div>
                         <div v-for="item in orderStore.selectedOrder.items" :key="item.product_id" class="receipt-item">
@@ -604,7 +609,7 @@ function printReceipt() {
         <Dialog v-model:visible="deleteOrderDialog" :style="{ width: '450px' }" header="Konfirmasi" :modal="true">
             <div class="flex items-center gap-4">
                 <i class="pi pi-exclamation-triangle text-3xl!" />
-                <span v-if="order">Apakah Anda yakin ingin membatalkan Pesanan <b>#{{ order.id }}</b>?</span>
+                <span v-if="order">Apakah Anda yakin ingin membatalkan Pesanan <b>{{ order.order_code }}</b>?</span>
             </div>
             <template #footer>
                 <Button label="Tidak" icon="pi pi-times" text @click="deleteOrderDialog = false" />

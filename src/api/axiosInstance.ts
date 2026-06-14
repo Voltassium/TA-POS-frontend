@@ -1,5 +1,5 @@
-import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8080/v1';
 
