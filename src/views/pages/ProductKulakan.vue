@@ -3,9 +3,13 @@ import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import type { Product } from '@/api/productApi';
 import type { ProductType } from '@/api/productApi';
+import { productApi } from '@/api/productApi';
+import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref, computed } from 'vue';
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const productStore = useProductStore();
@@ -53,6 +57,20 @@ async function loadProducts() {
 function onPage(event: { page: number; rows: number }) {
     lazyParams.value.page = event.page + 1;
     lazyParams.value.page_size = event.rows;
+    loadProducts();
+}
+
+function onSearchInput() {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        lazyParams.value.page = 1;
+        loadProducts();
+    }, 400);
+}
+
+function clearSearch() {
+    filters.value.global.value = null;
+    lazyParams.value.page = 1;
     loadProducts();
 }
 
@@ -129,8 +147,24 @@ async function deleteProduct() {
     }
 }
 
-function exportCSV() {
-    dt.value.exportCSV();
+async function exportExcel() {
+    try {
+        const response = await productApi.list({ page: 1, page_size: 1000, product_type: 'Kulakan' });
+        const formatCurrencyVal = (v: number) => v != null ? v.toLocaleString('id-ID') : '-';
+        exportToExcel(response.data, [
+            { header: 'SKU', key: 'sku', width: 15, format: (v: string) => v || '-' },
+            { header: 'Nama', key: 'name', width: 25 },
+            { header: 'Kategori', key: 'category_name', width: 18 },
+            { header: 'Harga Jual', key: 'price', width: 18, format: (v: number) => formatCurrencyVal(v) },
+            { header: 'Harga Beli', key: 'harga_beli', width: 18, format: (v: number) => formatCurrencyVal(v) },
+            { header: 'Stok', key: 'stock', width: 10 },
+            { header: 'Ketersediaan', key: 'is_available', width: 15, format: (v: boolean) => v ? 'Tersedia' : 'Habis' },
+            { header: 'Dibuat', key: 'created_at', width: 18, format: (v: string) => new Date(v).toLocaleDateString('id-ID') }
+        ], 'Produk_Kulakan');
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
+    } catch {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    }
 }
 </script>
 
@@ -142,7 +176,7 @@ function exportCSV() {
                     <Button label="Tambah Baru" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" />
                 </template>
                 <template #end>
-                    <Button label="Ekspor" icon="pi pi-upload" severity="secondary" @click="exportCSV" />
+                    <Button label="Ekspor Excel" icon="pi pi-file-excel" severity="success" @click="exportExcel" />
                 </template>
             </Toolbar>
 
@@ -168,8 +202,9 @@ function exportCSV() {
                             <InputIcon>
                                 <i class="pi pi-search" />
                             </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." @keydown.enter="loadProducts" />
+                            <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
                         </IconField>
+                        <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
                     </div>
                 </template>
 

@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import type { Category } from '@/api/categoryApi';
+import { categoryApi } from '@/api/categoryApi';
 import { useCategoryStore } from '@/stores/categoryStore';
+import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const categoryStore = useCategoryStore();
@@ -38,6 +42,20 @@ async function loadCategories() {
 function onPage(event: { page: number; rows: number }) {
     lazyParams.value.page = event.page + 1;
     lazyParams.value.page_size = event.rows;
+    loadCategories();
+}
+
+function onSearchInput() {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        lazyParams.value.page = 1;
+        loadCategories();
+    }, 400);
+}
+
+function clearSearch() {
+    filters.value.global.value = null;
+    lazyParams.value.page = 1;
     loadCategories();
 }
 
@@ -99,8 +117,17 @@ async function deleteCategory() {
     }
 }
 
-function exportCSV() {
-    dt.value.exportCSV();
+async function exportExcel() {
+    try {
+        const response = await categoryApi.list({ page: 1, page_size: 1000 });
+        exportToExcel(response.data, [
+            { header: 'Nama', key: 'name', width: 25 },
+            { header: 'Dibuat', key: 'created_at', width: 20, format: (v: string) => new Date(v).toLocaleDateString('id-ID') }
+        ], 'Kategori');
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
+    } catch {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    }
 }
 </script>
 
@@ -112,7 +139,7 @@ function exportCSV() {
                     <Button label="Tambah Baru" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" />
                 </template>
                 <template #end>
-                    <Button label="Ekspor" icon="pi pi-upload" severity="secondary" @click="exportCSV" />
+                    <Button label="Ekspor Excel" icon="pi pi-file-excel" severity="success" @click="exportExcel" />
                 </template>
             </Toolbar>
 
@@ -138,8 +165,9 @@ function exportCSV() {
                             <InputIcon>
                                 <i class="pi pi-search" />
                             </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." @keydown.enter="loadCategories" />
+                            <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
                         </IconField>
+                        <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
                     </div>
                 </template>
 

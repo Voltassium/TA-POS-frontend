@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import type { Pengeluaran } from '@/api/pengeluaranApi';
+import { pengeluaranApi } from '@/api/pengeluaranApi';
 import { usePengeluaranStore } from '@/stores/pengeluaranStore';
+import { exportToExcel } from '@/utils/exportExcel';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const store = usePengeluaranStore();
@@ -146,8 +150,39 @@ function clearDateFilter() {
     loadItems();
 }
 
-function exportCSV() {
-    dt.value.exportCSV();
+function onSearchInput() {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        lazyParams.value.page = 1;
+        loadItems();
+    }, 400);
+}
+
+function clearSearch() {
+    lazyParams.value.search = undefined;
+    lazyParams.value.page = 1;
+    loadItems();
+}
+
+async function exportExcel() {
+    try {
+        const params: any = { page: 1, page_size: 10000 };
+        if (lazyParams.value.start_date) params.start_date = lazyParams.value.start_date;
+        if (lazyParams.value.end_date) params.end_date = lazyParams.value.end_date;
+        const response = await pengeluaranApi.list(params);
+        const fmtCurrency = (v: number) => v != null ? v.toLocaleString('id-ID') : '-';
+        const fmtDate = (v: string) => new Date(v + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        exportToExcel(response.data, [
+            { header: 'Tanggal', key: 'tanggal', width: 28, format: (v: string) => fmtDate(v) },
+            { header: 'Kategori', key: 'category', width: 18 },
+            { header: 'Keterangan', key: 'description', width: 30, format: (v: string) => v || '-' },
+            { header: 'Jumlah', key: 'amount', width: 20, format: (v: number) => fmtCurrency(v) },
+            { header: 'Dicatat', key: 'created_at', width: 18, format: (v: string) => new Date(v).toLocaleDateString('id-ID') }
+        ], 'Pengeluaran');
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
+    } catch {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    }
 }
 </script>
 
@@ -159,7 +194,7 @@ function exportCSV() {
                     <Button label="Tambah Pengeluaran" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" />
                 </template>
                 <template #end>
-                    <Button label="Ekspor" icon="pi pi-upload" severity="secondary" @click="exportCSV" />
+                    <Button label="Ekspor Excel" icon="pi pi-file-excel" severity="success" @click="exportExcel" />
                 </template>
             </Toolbar>
 
@@ -180,12 +215,20 @@ function exportCSV() {
                 <template #header>
                     <div class="flex flex-wrap gap-2 items-center justify-between">
                         <h4 class="m-0">Kelola Pengeluaran</h4>
-                        <div class="flex gap-2 items-center">
+                        <div class="flex gap-2 items-center flex-wrap">
+                            <IconField>
+                                <InputIcon>
+                                    <i class="pi pi-search" />
+                                </InputIcon>
+                                <InputText v-model="lazyParams.search" placeholder="Cari kategori/keterangan..." @input="onSearchInput" @keydown.enter="onSearchInput" />
+                            </IconField>
+                            <Button v-if="lazyParams.search" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
+                            <span class="text-surface-300">|</span>
                             <InputText v-model="lazyParams.start_date" type="date" placeholder="Dari tanggal" />
                             <span>—</span>
                             <InputText v-model="lazyParams.end_date" type="date" placeholder="Sampai tanggal" />
-                            <Button icon="pi pi-search" severity="secondary" @click="onFilterDate" v-tooltip.top="'Filter'" />
-                            <Button icon="pi pi-times" severity="danger" outlined @click="clearDateFilter" v-tooltip.top="'Hapus Filter'" />
+                            <Button icon="pi pi-filter" severity="secondary" @click="onFilterDate" v-tooltip.top="'Filter Tanggal'" />
+                            <Button icon="pi pi-filter-slash" severity="danger" outlined @click="clearDateFilter" v-tooltip.top="'Hapus Filter Tanggal'" />
                         </div>
                     </div>
                 </template>

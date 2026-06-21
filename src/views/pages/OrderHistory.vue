@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { Order } from '@/api/orderApi';
 import { orderApi } from '@/api/orderApi';
+import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // You might need to adjust the Order interface imports based on your existing code
 
@@ -62,6 +65,35 @@ const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('id-ID');
 };
 
+async function exportExcel() {
+    try {
+        const response = await orderApi.list({ page: 1, page_size: 10000 });
+        const fmtCurrency = (v: number) => (v ?? 0).toLocaleString('id-ID');
+        exportToExcel(response.data, [
+            { header: 'Kode Pesanan', key: 'order_code', width: 20 },
+            { header: 'Pelanggan', key: 'customer_name', width: 20, format: (v: string) => v || '-' },
+            { header: 'Total Harga', key: 'total_amount', width: 20, format: (v: number) => fmtCurrency(v) },
+            { header: 'Status', key: 'status', width: 14 },
+            { header: 'Tanggal', key: 'created_at', width: 22, format: (v: string) => formatDate(v) }
+        ], 'Riwayat_Pesanan');
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
+    } catch {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    }
+}
+
+function onSearchInput() {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        loadData();
+    }, 400);
+}
+
+function clearSearch() {
+    filters.value.global.value = null;
+    loadData();
+}
+
 onMounted(() => {
     loadData();
 });
@@ -70,6 +102,14 @@ onMounted(() => {
 <template>
     <div>
         <div class="card">
+            <Toolbar class="mb-6">
+                <template #start>
+                    <h4 class="m-0">Riwayat Pesanan</h4>
+                </template>
+                <template #end>
+                    <Button label="Ekspor Excel" icon="pi pi-file-excel" severity="success" @click="exportExcel" />
+                </template>
+            </Toolbar>
             <DataTable
                 ref="dt"
                 :value="orderHistories"
@@ -87,14 +127,14 @@ onMounted(() => {
                 currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} pesanan"
             >
                 <template #header>
-                    <div class="flex flex-wrap gap-2 items-center justify-between">
-                        <h4 class="m-0">Riwayat Pesanan</h4>
+                    <div class="flex flex-wrap gap-2 items-center justify-end">
                         <IconField>
                             <InputIcon>
                                 <i class="pi pi-search" />
                             </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." @keydown.enter="loadData" />
+                            <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
                         </IconField>
+                        <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
                     </div>
                 </template>
                 <template #empty> Tidak ada pesanan ditemukan. </template>

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { stockHistoryApi, type StockHistory } from '@/api/stockHistoryApi';
+import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const stockHistories = ref<StockHistory[]>([]);
@@ -67,6 +70,33 @@ const translateReason = (reason: string) => {
     return text;
 };
 
+async function exportExcel() {
+    try {
+        const response = await stockHistoryApi.list({ page: 1, page_size: 10000 });
+        exportToExcel(response.data, [
+            { header: 'Produk', key: 'product_name', width: 25 },
+            { header: 'Perubahan', key: 'change', width: 12, format: (v: number) => v > 0 ? `+${v}` : String(v) },
+            { header: 'Alasan', key: 'reason', width: 35, format: (v: string) => translateReason(v) },
+            { header: 'Tanggal', key: 'created_at', width: 22, format: (v: string) => formatDate(v) }
+        ], 'Riwayat_Stok');
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
+    } catch {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    }
+}
+
+function onSearchInput() {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        loadData();
+    }, 400);
+}
+
+function clearSearch() {
+    filters.value.global.value = null;
+    loadData();
+}
+
 onMounted(() => {
     loadData();
 });
@@ -75,6 +105,14 @@ onMounted(() => {
 <template>
     <div>
         <div class="card">
+            <Toolbar class="mb-6">
+                <template #start>
+                    <h4 class="m-0">Riwayat Stok</h4>
+                </template>
+                <template #end>
+                    <Button label="Ekspor Excel" icon="pi pi-file-excel" severity="success" @click="exportExcel" />
+                </template>
+            </Toolbar>
             <DataTable 
                 ref="dt" 
                 :value="stockHistories" 
@@ -92,14 +130,14 @@ onMounted(() => {
                 currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} riwayat"
             >
                 <template #header>
-                    <div class="flex flex-wrap gap-2 items-center justify-between">
-                        <h4 class="m-0">Riwayat Stok</h4>
+                    <div class="flex flex-wrap gap-2 items-center justify-end">
                         <IconField>
                             <InputIcon>
                                 <i class="pi pi-search" />
                             </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." @keydown.enter="loadData" />
+                            <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
                         </IconField>
+                        <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
                     </div>
                 </template>
                 <template #empty> Tidak ada riwayat stok ditemukan. </template>

@@ -2,11 +2,13 @@
 import type { Order } from '@/api/orderApi';
 import type { PaymentCreatePayload } from '@/api/paymentApi';
 import { paymentApi } from '@/api/paymentApi';
-import '@/assets/print.css';
+import { generateReceiptPdf } from '@/utils/generateReceiptPdf';
 import { useOrderStore } from '@/stores/orderStore';
 import { useProductStore } from '@/stores/productStore';
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const orderStore = useOrderStore();
@@ -16,6 +18,8 @@ const orderDialog = ref(false);
 const detailDialog = ref(false);
 const deleteOrderDialog = ref(false);
 const paymentDialog = ref(false);
+const receiptPreviewDialog = ref(false);
+const receiptPreviewUrl = ref<string>('');
 const order = ref<Record<string, any>>({});
 const submitted = ref(false);
 const saving = ref(false);
@@ -100,6 +104,15 @@ function onStatusFilter() {
 }
 
 function onSearch() {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        lazyParams.value.page = 1;
+        loadOrders();
+    }, 400);
+}
+
+function clearSearch() {
+    searchQuery.value = '';
     lazyParams.value.page = 1;
     loadOrders();
 }
@@ -281,8 +294,59 @@ function formatTableId(tableId: number | null) {
 }
 
 function printReceipt() {
-    window.print();
+    if (!orderStore.selectedOrder) return;
+
+    // Revoke any previous blob URL
+    if (receiptPreviewUrl.value) {
+        URL.revokeObjectURL(receiptPreviewUrl.value);
+    }
+
+    const data = orderStore.selectedOrder;
+    const blobUrl = generateReceiptPdf({
+        order_code: data.order_code,
+        table_id: data.table_id,
+        customer_name: data.customer_name,
+        staff_name: data.staff_name || String(data.staff_id),
+        total_amount: data.total_amount,
+        created_at: data.created_at,
+        items: (data.items || []).map(item => ({
+            product_name: item.product_name || `Produk #${item.product_id}`,
+            quantity: item.quantity,
+            unit_price: item.price,
+            subtotal: item.subtotal
+        })),
+        payment: data.payment ? {
+            payment_method: data.payment.payment_method,
+            amount_paid: data.payment.amount_paid,
+            timestamp: data.payment.timestamp
+        } : null
+    });
+
+    receiptPreviewUrl.value = blobUrl;
+    receiptPreviewDialog.value = true;
 }
+
+function closeReceiptPreview() {
+    receiptPreviewDialog.value = false;
+    if (receiptPreviewUrl.value) {
+        URL.revokeObjectURL(receiptPreviewUrl.value);
+        receiptPreviewUrl.value = '';
+    }
+}
+
+function downloadReceipt() {
+    if (!receiptPreviewUrl.value || !orderStore.selectedOrder) return;
+    const a = document.createElement('a');
+    a.href = receiptPreviewUrl.value;
+    a.download = `Nota_${orderStore.selectedOrder.order_code}.pdf`;
+    a.click();
+}
+
+onUnmounted(() => {
+    if (receiptPreviewUrl.value) {
+        URL.revokeObjectURL(receiptPreviewUrl.value);
+    }
+});
 </script>
 
 <template>
@@ -297,8 +361,9 @@ function printReceipt() {
                         <InputIcon>
                             <i class="pi pi-search" />
                         </InputIcon>
-                        <InputText v-model="searchQuery" placeholder="Cari Kode Pesanan..." @keydown.enter="onSearch" />
+                        <InputText v-model="searchQuery" placeholder="Cari Kode Pesanan..." @input="onSearch" @keydown.enter="onSearch" />
                     </IconField>
+                    <Button v-if="searchQuery" icon="pi pi-times" severity="danger" text rounded class="mr-2" @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
                     <Select
                         v-model="statusFilter"
                         :options="statusOptions"
@@ -595,41 +660,27 @@ function printReceipt() {
                     </div>
                 </div>
                 <p v-else class="text-surface-400">Belum ada pembayaran.</p>
-
-                <!-- Printable Receipt Template -->
-                <div id="printable-receipt" class="hidden">
-                    <div class="receipt-container">
-                        <div class="receipt-header">
-                            <h2>Sistem POS</h2>
-                            <p>Pesanan {{ orderStore.selectedOrder.order_code }} - Meja {{ formatTableId(orderStore.selectedOrder.table_id) }}</p>
-                            <p v-if="orderStore.selectedOrder.customer_name">Pelanggan: {{ orderStore.selectedOrder.customer_name }}</p>
-                            <p>{{ new Date(orderStore.selectedOrder.created_at).toLocaleString('id-ID') }}</p>
-                        </div>
-                        <div v-for="item in orderStore.selectedOrder.items" :key="item.product_id" class="receipt-item">
-                            <div>
-                                {{ item.product_name || `Produk #${item.product_id}` }}<br>
-                                {{ item.quantity }} x {{ formatCurrency(item.price) }}
-                            </div>
-                            <div>
-                                <br>{{ formatCurrency(item.subtotal) }}
-                            </div>
-                        </div>
-                        <div class="receipt-total">
-                            Total: {{ formatCurrency(orderStore.selectedOrder.total_amount) }}
-                            <div v-if="orderStore.selectedOrder.payment">
-                                Dibayar: {{ formatCurrency(orderStore.selectedOrder.payment.amount_paid) }}
-                            </div>
-                        </div>
-                        <div class="receipt-footer">
-                            Terima Kasih Atas Kunjungan Anda!
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <template #footer>
                 <Button label="Cetak Nota" icon="pi pi-print" severity="secondary" @click="printReceipt" />
                 <Button label="Tutup" icon="pi pi-times" text @click="detailDialog = false" />
+            </template>
+        </Dialog>
+
+        <!-- Receipt PDF Preview Dialog -->
+        <Dialog v-model:visible="receiptPreviewDialog" :style="{ width: '500px', height: '80vh' }" header="Preview Nota" :modal="true" @hide="closeReceiptPreview">
+            <div class="flex flex-col h-full" style="min-height: 500px">
+                <iframe
+                    v-if="receiptPreviewUrl"
+                    :src="receiptPreviewUrl"
+                    class="w-full flex-1 border-0 rounded-lg"
+                    style="min-height: 480px"
+                />
+            </div>
+            <template #footer>
+                <Button label="Download PDF" icon="pi pi-download" severity="success" @click="downloadReceipt" />
+                <Button label="Tutup" icon="pi pi-times" text @click="closeReceiptPreview" />
             </template>
         </Dialog>
 
