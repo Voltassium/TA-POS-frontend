@@ -33,16 +33,16 @@ export const useCategoryStore = defineStore('category', {
             }
         },
 
-        async createCategory(payload: { name: string; image_url?: string }) {
+        async createCategory(payload: { name: string }) {
             const created = await categoryApi.create(payload);
             return created;
         },
 
-        async updateCategory(id: number, payload: { name?: string; image_url?: string }) {
+        async updateCategory(id: string, payload: { name?: string }) {
             await categoryApi.update(id, payload);
         },
 
-        async deleteCategory(id: number) {
+        async deleteCategory(id: string) {
             await categoryApi.remove(id);
         }
     }

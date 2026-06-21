@@ -51,6 +51,22 @@ const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('id-ID');
 };
 
+const translateReason = (reason: string) => {
+    if (!reason) return '-';
+    
+    let text = reason;
+    text = text.replace(/Order ([\w-]+) Created/g, 'Pesanan $1 Dibuat');
+    text = text.replace(/Order ([\w-]+) Cancelled/g, 'Pesanan $1 Dibatalkan');
+    text = text.replace(/Item added to Order ([\w-]+)/g, 'Item ditambahkan ke Pesanan $1');
+    text = text.replace(/Item removed from Order ([\w-]+)/g, 'Item dihapus dari Pesanan $1');
+    
+    if (text === 'Initial Stock') return 'Stok Awal';
+    if (text.toLowerCase() === 'manual adjustment') return 'Penyesuaian Manual';
+    if (text.toLowerCase() === 'stock update') return 'Pembaruan Stok';
+    
+    return text;
+};
+
 onMounted(() => {
     loadData();
 });
@@ -87,9 +103,6 @@ onMounted(() => {
                     </div>
                 </template>
                 <template #empty> Tidak ada riwayat stok ditemukan. </template>
-                <Column field="id" header="ID Riwayat" style="min-width: 10rem">
-                    <template #body="{ data }"> #{{ data.id }} </template>
-                </Column>
                 <Column field="product_name" header="Produk" style="min-width: 10rem">
                     <template #body="{ data }">
                         {{ data.product_name }}
@@ -100,7 +113,11 @@ onMounted(() => {
                         <Tag :value="getChangeText(data.change)" :severity="getChangeLabel(data.change)" />
                     </template>
                 </Column>
-                <Column field="reason" header="Alasan" style="min-width: 12rem" />
+                <Column field="reason" header="Alasan" style="min-width: 12rem">
+                    <template #body="{ data }">
+                        {{ translateReason(data.reason) }}
+                    </template>
+                </Column>
                 <Column field="created_at" header="Tanggal" style="min-width: 12rem">
                     <template #body="{ data }">
                         {{ formatDate(data.created_at) }}

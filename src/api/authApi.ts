@@ -11,8 +11,8 @@ export const authApi = {
         return data.data;
     },
 
-    async register(email: string, password: string, role?: 'admin' | 'staff') {
-        const { data } = await api.post('/authentications/register', { email, password, role });
+    async register(email: string, password: string, role?: 'Owner' | 'Staff', storeName?: string) {
+        const { data } = await api.post('/authentications/register', { email, password, role, store_name: storeName });
         return data;
     },
 

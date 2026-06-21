@@ -22,6 +22,7 @@ const saving = ref(false);
 const payingSaving = ref(false);
 
 const statusFilter = ref<string | null>(null);
+const searchQuery = ref<string>('');
 const lazyParams = ref({
     page: 1,
     page_size: 12
@@ -78,6 +79,9 @@ async function loadOrders() {
         } else {
             params.exclude_status = 'Ready';
         }
+        if (searchQuery.value) {
+            params.search = searchQuery.value;
+        }
         await orderStore.fetchOrders(params);
     } catch (error) {
         toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar pesanan', life: 3000 });
@@ -95,8 +99,13 @@ function onStatusFilter() {
     loadOrders();
 }
 
+function onSearch() {
+    lazyParams.value.page = 1;
+    loadOrders();
+}
+
 async function openNew() {
-    order.value = { table_id: null };
+    order.value = { table_id: null, customer_name: null };
     orderProducts.value = [];
     selectedProduct.value = null;
     selectedQuantity.value = 1;
@@ -196,6 +205,7 @@ async function saveOrder() {
     try {
         const payload = {
             table_id: order.value.table_id || undefined,
+            customer_name: order.value.customer_name || undefined,
             items: orderProducts.value.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity
@@ -283,6 +293,12 @@ function printReceipt() {
                     <Button label="Pesanan Baru" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" />
                 </template>
                 <template #end>
+                    <IconField class="mr-2">
+                        <InputIcon>
+                            <i class="pi pi-search" />
+                        </InputIcon>
+                        <InputText v-model="searchQuery" placeholder="Cari Kode Pesanan..." @keydown.enter="onSearch" />
+                    </IconField>
                     <Select
                         v-model="statusFilter"
                         :options="statusOptions"
@@ -314,11 +330,14 @@ function printReceipt() {
                             </div>
                         </template>
                         <template #subtitle>
-                            Meja: {{ formatTableId(ord.table_id) }}
+                            <div class="flex flex-col">
+                                <span v-if="ord.customer_name" class="font-semibold text-surface-900 dark:text-surface-0">{{ ord.customer_name }}</span>
+                                <span>Meja: {{ formatTableId(ord.table_id) }}</span>
+                            </div>
                         </template>
                         <template #content>
                             <div class="flex flex-col gap-2 mt-2">
-                                <span class="text-sm">Kasir ID: {{ ord.staff_id }}</span>
+                                <span class="text-sm">Kasir: {{ ord.staff_name || ord.staff_id }}</span>
                                 <span class="font-bold text-lg text-primary">{{ formatCurrency(ord.total_amount) }}</span>
                                 <span class="text-xs text-surface-500">{{ new Date(ord.created_at).toLocaleString('id-ID') }}</span>
                             </div>
@@ -363,6 +382,10 @@ function printReceipt() {
         <!-- Create Order Dialog -->
         <Dialog v-model:visible="orderDialog" :style="{ width: '650px' }" header="Pesanan Baru" :modal="true">
             <div class="flex flex-col gap-4">
+                <div>
+                    <label for="customer_name" class="block font-bold mb-2">Nama Pelanggan <span class="text-surface-400 font-normal text-sm">(opsional)</span></label>
+                    <InputText id="customer_name" v-model="order.customer_name" placeholder="Masukkan nama pelanggan" fluid />
+                </div>
                 <div>
                     <label for="table_id" class="block font-bold mb-2">Nomor Meja <span class="text-surface-400 font-normal text-sm">(opsional)</span></label>
                     <InputNumber id="table_id" v-model="order.table_id" :min="1" placeholder="Kosongkan jika tanpa meja" fluid />
@@ -448,6 +471,10 @@ function printReceipt() {
                         <span class="font-bold">#{{ orderStore.selectedOrder.id }}</span>
                     </div>
                     <div class="flex justify-between items-center mb-2">
+                        <span class="text-surface-500">Pelanggan</span>
+                        <span class="font-bold">{{ orderStore.selectedOrder.customer_name || '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-2">
                         <span class="text-surface-500">Meja</span>
                         <span class="font-bold">{{ formatTableId(orderStore.selectedOrder.table_id) }}</span>
                     </div>
@@ -506,10 +533,10 @@ function printReceipt() {
             <div v-if="orderStore.selectedOrder" class="flex flex-col gap-4">
                 <div class="grid grid-cols-12 gap-4">
                     <div class="col-span-4">
-                        <span class="font-bold">ID Pesanan:</span> {{ orderStore.selectedOrder.id }}
+                        <span class="font-bold">Meja:</span> {{ formatTableId(orderStore.selectedOrder.table_id) }}
                     </div>
                     <div class="col-span-4">
-                        <span class="font-bold">Meja:</span> {{ formatTableId(orderStore.selectedOrder.table_id) }}
+                        <span class="font-bold">Pelanggan:</span> {{ orderStore.selectedOrder.customer_name || '-' }}
                     </div>
                     <div class="col-span-4">
                         <span class="font-bold">Status:</span>
@@ -518,7 +545,7 @@ function printReceipt() {
                 </div>
                 <div class="grid grid-cols-12 gap-4">
                     <div class="col-span-4">
-                        <span class="font-bold">Kasir ID:</span> {{ orderStore.selectedOrder.staff_id }}
+                        <span class="font-bold">Kasir:</span> {{ orderStore.selectedOrder.staff_name || orderStore.selectedOrder.staff_id }}
                     </div>
                     <div class="col-span-4">
                         <span class="font-bold">Total:</span> {{ formatCurrency(orderStore.selectedOrder.total_amount) }}
@@ -575,6 +602,7 @@ function printReceipt() {
                         <div class="receipt-header">
                             <h2>Sistem POS</h2>
                             <p>Pesanan {{ orderStore.selectedOrder.order_code }} - Meja {{ formatTableId(orderStore.selectedOrder.table_id) }}</p>
+                            <p v-if="orderStore.selectedOrder.customer_name">Pelanggan: {{ orderStore.selectedOrder.customer_name }}</p>
                             <p>{{ new Date(orderStore.selectedOrder.created_at).toLocaleString('id-ID') }}</p>
                         </div>
                         <div v-for="item in orderStore.selectedOrder.items" :key="item.product_id" class="receipt-item">

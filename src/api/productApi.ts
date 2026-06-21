@@ -1,10 +1,15 @@
 import api from './axiosInstance';
 import type { PaginatedResponse, PaginationParams } from './categoryApi';
 
+export type ProductType = 'Kulakan' | 'Olahan';
+
 export interface Product {
-    id: number;
-    category_id: number;
+    id: string;
+    category_id: string;
     category_name: string;
+    product_type: ProductType;
+    sku?: string | null;
+    harga_beli?: number | null;
     name: string;
     description: string;
     price: number;
@@ -15,7 +20,10 @@ export interface Product {
 }
 
 export interface ProductCreatePayload {
-    category_id: number;
+    category_id: string;
+    product_type: ProductType;
+    sku?: string | null;
+    harga_beli?: number | null;
     name: string;
     description?: string;
     price: number;
@@ -24,7 +32,8 @@ export interface ProductCreatePayload {
 }
 
 export interface ProductListParams extends PaginationParams {
-    category_id?: number;
+    category_id?: string;
+    product_type?: ProductType;
 }
 
 export const productApi = {
@@ -33,7 +42,7 @@ export const productApi = {
         return data.data;
     },
 
-    async getById(id: number) {
+    async getById(id: string) {
         const { data } = await api.get<{ data: Product }>(`/products/${id}`);
         return data.data;
     },
@@ -43,12 +52,12 @@ export const productApi = {
         return data.data;
     },
 
-    async update(id: number, payload: Partial<ProductCreatePayload>) {
+    async update(id: string, payload: Partial<ProductCreatePayload>) {
         const { data } = await api.put(`/products/${id}`, payload);
         return data;
     },
 
-    async remove(id: number) {
+    async remove(id: string) {
         const { data } = await api.delete(`/products/${id}`);
         return data;
     }

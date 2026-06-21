@@ -15,6 +15,8 @@ export interface TopSellingProduct {
 export interface DashboardStats {
     total_orders: number;
     total_revenue: number;
+    total_profit: number;
+    total_expenses: number;
 }
 
 export interface DashboardResponse {
@@ -24,8 +26,8 @@ export interface DashboardResponse {
 }
 
 export const statisticsApi = {
-    getDashboardData: async () => {
-        const response = await api.get('/statistics/dashboard');
+    getDashboardData: async (range: 'daily' | 'weekly' | 'monthly' | 'all' = 'daily') => {
+        const response = await api.get('/statistics/dashboard', { params: { range } });
         return response.data;
     }
 };

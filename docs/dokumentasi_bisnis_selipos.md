@@ -31,6 +31,10 @@ Berikut adalah entitas utama yang membangun struktur data aplikasi ini:
 - Sistem tidak hanya mengubah angka stok di Produk, tetapi mencatat setiap kejadian dalam **Riwayat Stok (Stock History)**.
 - Setiap kali ada barang masuk (restock), terjual, atau rusak/terbuang, sistem mencatat perubahan jumlah (positif/negatif) beserta **Alasan (Reason)**. Hal ini sangat krusial untuk audit stok harian.
 
+### D. Manajemen Pengeluaran (Expense)
+- Mencatat pengeluaran operasional di luar transaksi penjualan untuk keperluan pencatatan arus kas (cash flow).
+- Kategori pengeluaran mencakup Bahan Baku, Gaji Karyawan, Sewa Tempat, dan pengeluaran operasional lainnya untuk analisis keuntungan bersih.
+
 ## 3. Alur Operasional (Workflow)
 
 ### A. Alur Pemesanan Kasir (Order Flow)
@@ -58,6 +62,32 @@ Karena koneksi internet di gerai seringkali tidak stabil, sistem ini memiliki la
 - **Riwayat Transaksi (Order History):** Mencatat log dari pesanan masa lalu untuk verifikasi dan pembukuan.
 - **Statistik (Statistics):** Memberikan tampilan analisis omzet, produk terlaris, dan performa harian kepada pemilik toko.
 - **Autentikasi:** Sistem login diamankan dengan token JWT (JSON Web Token), membedakan wewenang antara Kasir, Dapur, dan Manajer (Pemilik).
+
+## 6. Pemetaan Implementasi Teknis (Technical Implementation Mapping)
+
+Untuk keperluan dokumentasi teknis (seperti Tugas Akhir), berikut adalah pemetaan fitur bisnis ke dalam file sumber (*source code*) pada sistem *Frontend* dan *Backend*:
+
+### A. Frontend (Vue.js)
+Lokasi utama antarmuka pengguna: `src/views/pages/`
+- **Dashboard & Statistik:** `Dashboard.vue`
+- **Alur Kasir (Pemesanan & Pembayaran):** `Order.vue`
+- **Alur Dapur (Pelacakan Item):** `Kitchen.vue`
+- **Manajemen Kategori:** `Category.vue`
+- **Manajemen Produk:** `ProductKulakan.vue`, `ProductOlahan.vue`
+- **Manajemen Inventaris (Riwayat Stok):** `StockHistory.vue`
+- **Manajemen Pengeluaran:** `Pengeluaran.vue`
+- **Riwayat Transaksi:** `OrderHistory.vue`
+
+### B. Backend (Go)
+Lokasi utama *controllers* (Logika Bisnis/API): `internal/controllers/`
+- **Autentikasi & Pengguna:** `authentication.go`, `user.go`
+- **Manajemen Toko:** `store.go`
+- **Dashboard & Statistik:** `statistics.go`
+- **Manajemen Katalog:** `category.go`, `product.go`
+- **Pemesanan & Pembayaran:** `order.go`, `order_item.go`, `payment.go`
+- **Operasional Dapur:** `kitchen.go`
+- **Riwayat Inventaris:** `stock_history.go`
+- **Pengeluaran Operasional:** `pengeluaran.go`
 
 ---
 

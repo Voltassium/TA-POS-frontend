@@ -2,7 +2,7 @@ import api from './axiosInstance';
 import type { Payment } from './orderApi';
 
 export interface PaymentCreatePayload {
-    order_id: number;
+    order_id: string;
     payment_method: 'Cash' | 'Card' | 'Digital Wallet';
     amount_paid: number;
 }
@@ -13,7 +13,7 @@ export const paymentApi = {
         return data.data;
     },
 
-    async getByOrder(orderId: number) {
+    async getByOrder(orderId: string) {
         const { data } = await api.get<{ data: Payment }>(`/payments/${orderId}`);
         return data.data;
     }

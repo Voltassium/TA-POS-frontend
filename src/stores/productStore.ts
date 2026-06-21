@@ -38,11 +38,11 @@ export const useProductStore = defineStore('product', {
             return created;
         },
 
-        async updateProduct(id: number, payload: Partial<ProductCreatePayload>) {
+        async updateProduct(id: string, payload: Partial<ProductCreatePayload>) {
             await productApi.update(id, payload);
         },
 
-        async deleteProduct(id: number) {
+        async deleteProduct(id: string) {
             await productApi.remove(id);
         }
     }

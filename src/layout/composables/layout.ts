@@ -15,6 +15,8 @@ const layoutState = reactive({
     configSidebarVisible: false,
     sidebarExpanded: false,
     menuHoverActive: false,
+    mobileMenuActive: false,
+    anchored: false,
     activeMenuItem: null,
     activePath: null
 });
@@ -27,7 +29,7 @@ export function useLayout() {
             return;
         }
 
-        document.startViewTransition(() => executeDarkModeToggle(event));
+        document.startViewTransition(() => executeDarkModeToggle());
     };
 
     const executeDarkModeToggle = () => {

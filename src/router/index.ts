@@ -113,9 +113,14 @@ const router = createRouter({
                     component: () => import('@/views/pages/Category.vue')
                 },
                 {
-                    path: '/pages/product',
-                    name: 'product',
-                    component: () => import('@/views/pages/Product.vue')
+                    path: '/pages/product-kulakan',
+                    name: 'product-kulakan',
+                    component: () => import('@/views/pages/ProductKulakan.vue')
+                },
+                {
+                    path: '/pages/product-olahan',
+                    name: 'product-olahan',
+                    component: () => import('@/views/pages/ProductOlahan.vue')
                 },
                 {
                     path: '/pages/order-history',
@@ -136,6 +141,11 @@ const router = createRouter({
                     path: '/kitchen',
                     name: 'kitchen',
                     component: () => import('@/views/pages/Kitchen.vue')
+                },
+                {
+                    path: '/pages/pengeluaran',
+                    name: 'pengeluaran',
+                    component: () => import('@/views/pages/Pengeluaran.vue')
                 },
                 {
                     path: '/start/documentation',

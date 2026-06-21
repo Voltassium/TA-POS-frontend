@@ -18,7 +18,7 @@ interface SeliPOSOfflineDB extends DBSchema {
 
 export interface OfflineOrderPayload {
     table_id?: number | null;
-    items: { product_id: number; quantity: number }[];
+    items: { product_id: string; quantity: number }[];
 }
 
 const DB_NAME = 'selipos-offline';

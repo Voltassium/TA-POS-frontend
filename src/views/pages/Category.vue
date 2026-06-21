@@ -16,9 +16,10 @@ const submitted = ref(false);
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
-const lazyParams = ref({
+const lazyParams = ref<any>({
     page: 1,
-    page_size: 10
+    page_size: 10,
+    search: undefined
 });
 
 onMounted(() => {
@@ -27,6 +28,7 @@ onMounted(() => {
 
 async function loadCategories() {
     try {
+        lazyParams.value.search = filters.value.global.value || undefined;
         await categoryStore.fetchCategories(lazyParams.value);
     } catch (error) {
         toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar kategori', life: 3000 });
@@ -68,14 +70,12 @@ async function saveCategory() {
     try {
         if (category.value.id) {
             await categoryStore.updateCategory(category.value.id, {
-                name: category.value.name,
-                image_url: category.value.image_url
+                name: category.value.name
             });
             toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Kategori berhasil diperbarui', life: 3000 });
         } else {
             await categoryStore.createCategory({
-                name: category.value.name,
-                image_url: category.value.image_url
+                name: category.value.name
             });
             toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Kategori berhasil ditambahkan', life: 3000 });
         }
@@ -138,21 +138,14 @@ function exportCSV() {
                             <InputIcon>
                                 <i class="pi pi-search" />
                             </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." />
+                            <InputText v-model="filters['global'].value" placeholder="Cari..." @keydown.enter="loadCategories" />
                         </IconField>
                     </div>
                 </template>
 
                 <template #empty> Tidak ada kategori ditemukan. </template>
 
-                <Column field="id" header="ID" sortable style="min-width: 6rem"></Column>
                 <Column field="name" header="Nama" sortable style="min-width: 16rem"></Column>
-                <Column field="image_url" header="Gambar" style="min-width: 12rem">
-                    <template #body="slotProps">
-                        <img v-if="slotProps.data.image_url" :src="slotProps.data.image_url" alt="Gambar kategori" class="rounded" style="width: 64px; height: 64px; object-fit: cover" />
-                        <span v-else class="text-surface-400">Tidak ada gambar</span>
-                    </template>
-                </Column>
                 <Column field="created_at" header="Dibuat" sortable style="min-width: 12rem">
                     <template #body="slotProps">
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
@@ -173,10 +166,6 @@ function exportCSV() {
                     <label for="name" class="block font-bold mb-3">Nama</label>
                     <InputText id="name" v-model.trim="category.name" required autofocus :invalid="submitted && !category.name" fluid />
                     <small v-if="submitted && !category.name" class="text-red-500">Nama wajib diisi.</small>
-                </div>
-                <div>
-                    <label for="image_url" class="block font-bold mb-3">URL Gambar</label>
-                    <InputText id="image_url" v-model.trim="category.image_url" fluid placeholder="https://..." />
                 </div>
             </div>
 

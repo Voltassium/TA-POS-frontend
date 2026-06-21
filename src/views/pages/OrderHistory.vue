@@ -25,7 +25,8 @@ const loadData = async (event?: any) => {
         
         const response = await orderApi.list({
             page,
-            page_size: limit
+            page_size: limit,
+            search: filters.value.global.value || undefined
         });
         
         orderHistories.value = response.data;
@@ -100,6 +101,11 @@ onMounted(() => {
                 <Column field="order_code" header="Kode Pesanan" style="min-width: 12rem">
                     <template #body="{ data }">
                         {{ data.order_code }}
+                    </template>
+                </Column>
+                <Column field="customer_name" header="Pelanggan" style="min-width: 12rem">
+                    <template #body="{ data }">
+                        {{ data.customer_name || '-' }}
                     </template>
                 </Column>
                 <Column field="total_amount" header="Total Harga" style="min-width: 12rem">

@@ -118,9 +118,14 @@ async function markAllServed(order: OrderDetail) {
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <Card v-for="ord in orders" :key="ord.id" class="border-2 border-orange-200 dark:border-orange-800">
                 <template #title>
-                    <div class="flex justify-between items-center bg-orange-100 dark:bg-orange-900/30 p-3 -mx-4 -mt-4 mb-2 rounded-t-lg">
-                        <span class="text-orange-600 dark:text-orange-400 font-bold">Meja: {{ ord.table_id ?? '-' }}</span>
-                        <span class="text-sm">{{ ord.order_code }}</span>
+                    <div class="flex flex-col bg-orange-100 dark:bg-orange-900/30 p-3 -mx-4 -mt-4 mb-2 rounded-t-lg">
+                        <div class="flex justify-between items-center">
+                            <span class="text-orange-600 dark:text-orange-400 font-bold">Meja: {{ ord.table_id ?? '-' }}</span>
+                            <span class="text-sm font-normal">{{ ord.order_code }}</span>
+                        </div>
+                        <div v-if="ord.customer_name" class="mt-1 text-sm font-medium text-orange-800 dark:text-orange-200">
+                            Pelanggan: {{ ord.customer_name }}
+                        </div>
                     </div>
                 </template>
                 <template #content>

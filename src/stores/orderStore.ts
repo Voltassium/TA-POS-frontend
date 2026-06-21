@@ -40,7 +40,7 @@ export const useOrderStore = defineStore('order', {
             }
         },
 
-        async fetchOrderDetail(id: number) {
+        async fetchOrderDetail(id: string) {
             this.loading = true;
             try {
                 const detail = await orderApi.getById(id);
@@ -73,27 +73,27 @@ export const useOrderStore = defineStore('order', {
             }
         },
 
-        async updateOrderStatus(id: number, status: 'Open' | 'Paid' | 'Cancelled' | 'Ready') {
+        async updateOrderStatus(id: string, status: 'Open' | 'Paid' | 'Cancelled' | 'Ready') {
             await orderApi.updateStatus(id, status);
         },
 
-        async cancelOrder(id: number) {
+        async cancelOrder(id: string) {
             await orderApi.cancel(id);
         },
 
-        async addItem(orderId: number, productId: number, quantity: number) {
+        async addItem(orderId: string, productId: string, quantity: number) {
             const updated = await orderApi.addItem(orderId, productId, quantity);
             this.selectedOrder = updated;
             return updated;
         },
 
-        async removeItem(orderId: number, itemId: number) {
+        async removeItem(orderId: string, itemId: string) {
             const updated = await orderApi.removeItem(orderId, itemId);
             this.selectedOrder = updated;
             return updated;
         },
 
-        async updateItemServedQty(orderId: number, itemId: number, servedQty: number) {
+        async updateItemServedQty(orderId: string, itemId: string, servedQty: number) {
             const updated = await orderApi.updateItemServedQty(orderId, itemId, servedQty);
             this.selectedOrder = updated;
             return updated;

@@ -3,7 +3,7 @@ import { authApi } from '@/api/authApi';
 import api from '@/api/axiosInstance';
 
 export interface UserProfile {
-    id: number;
+    id: string;
     email: string;
     role: string;
     created_at: string;
@@ -65,8 +65,8 @@ export const useAuthStore = defineStore('auth', {
          * Register a new user account via POST /v1/authentications/register.
          * Does NOT auto-login — the user is redirected to the login page after.
          */
-        async register(email: string, password: string, role?: 'admin' | 'staff') {
-            return await authApi.register(email, password, role);
+        async register(email: string, password: string, role?: 'Owner' | 'Staff', storeName?: string) {
+            return await authApi.register(email, password, role, storeName);
         },
 
         /**

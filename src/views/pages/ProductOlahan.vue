@@ -2,6 +2,7 @@
 import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import type { Product } from '@/api/productApi';
+import type { ProductType } from '@/api/productApi';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref, computed } from 'vue';
@@ -18,14 +19,18 @@ const submitted = ref(false);
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
-const lazyParams = ref({
+const lazyParams = ref<any>({
     page: 1,
-    page_size: 10
+    page_size: 10,
+    search: undefined,
+    product_type: 'Olahan'
 });
 
 const categoryOptions = computed(() =>
     categoryStore.categories.map((c) => ({ label: c.name, value: c.id }))
 );
+
+const isKulakan = false;
 
 onMounted(async () => {
     await loadProducts();
@@ -38,6 +43,7 @@ onMounted(async () => {
 
 async function loadProducts() {
     try {
+        lazyParams.value.search = filters.value.global.value || undefined;
         await productStore.fetchProducts(lazyParams.value);
     } catch (error) {
         toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar produk', life: 3000 });
@@ -51,7 +57,7 @@ function onPage(event: { page: number; rows: number }) {
 }
 
 function openNew() {
-    product.value = { is_available: true };
+    product.value = { is_available: true, product_type: 'Olahan' };
     submitted.value = false;
     productDialog.value = true;
 }
@@ -86,6 +92,9 @@ async function saveProduct() {
     try {
         const payload = {
             category_id: product.value.category_id,
+            product_type: 'Olahan' as ProductType,
+            sku: product.value.sku || null,
+            harga_beli: null,
             name: product.value.name,
             description: product.value.description || '',
             price: product.value.price,
@@ -154,26 +163,31 @@ function exportCSV() {
             >
                 <template #header>
                     <div class="flex flex-wrap gap-2 items-center justify-between">
-                        <h4 class="m-0">Kelola Produk</h4>
+                        <h4 class="m-0">Kelola Produk Olahan</h4>
                         <IconField>
                             <InputIcon>
                                 <i class="pi pi-search" />
                             </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." />
+                            <InputText v-model="filters['global'].value" placeholder="Cari..." @keydown.enter="loadProducts" />
                         </IconField>
                     </div>
                 </template>
 
                 <template #empty> Tidak ada produk ditemukan. </template>
 
-                <Column field="id" header="ID" sortable style="min-width: 6rem"></Column>
+                <Column field="sku" header="SKU" sortable style="min-width: 8rem">
+                    <template #body="slotProps">
+                        {{ slotProps.data.sku || '-' }}
+                    </template>
+                </Column>
                 <Column field="name" header="Nama" sortable style="min-width: 14rem"></Column>
                 <Column field="category_name" header="Kategori" sortable style="min-width: 10rem"></Column>
-                <Column field="price" header="Harga" sortable style="min-width: 8rem">
+                <Column field="price" header="Harga Jual" sortable style="min-width: 8rem">
                     <template #body="slotProps">
                         {{ formatCurrency(slotProps.data.price) }}
                     </template>
                 </Column>
+
                 <Column field="stock" header="Stok" sortable style="min-width: 8rem"></Column>
                 <Column field="is_available" header="Ketersediaan" sortable style="min-width: 8rem">
                     <template #body="slotProps">
@@ -202,6 +216,10 @@ function exportCSV() {
                     <small v-if="submitted && !product.name" class="text-red-500">Nama wajib diisi.</small>
                 </div>
                 <div>
+                    <label for="sku" class="block font-bold mb-3">SKU</label>
+                    <InputText id="sku" v-model.trim="product.sku" fluid />
+                </div>
+                <div>
                     <label for="description" class="block font-bold mb-3">Deskripsi</label>
                     <Textarea id="description" v-model="product.description" rows="3" cols="20" fluid />
                 </div>
@@ -219,12 +237,14 @@ function exportCSV() {
                     />
                     <small v-if="submitted && !product.category_id" class="text-red-500">Kategori wajib dipilih.</small>
                 </div>
+
                 <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-4">
-                        <label for="price" class="block font-bold mb-3">Harga</label>
+                    <div class="col-span-6">
+                        <label for="price" class="block font-bold mb-3">Harga Jual</label>
                         <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :invalid="submitted && (product.price == null || product.price < 0)" fluid />
-                        <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga wajib diisi.</small>
+                        <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga jual wajib diisi.</small>
                     </div>
+
                     <div class="col-span-4">
                         <label for="stock" class="block font-bold mb-3">Stok</label>
                         <InputNumber id="stock" v-model="product.stock" fluid />

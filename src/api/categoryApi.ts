@@ -1,9 +1,8 @@
 import api from './axiosInstance';
 
 export interface Category {
-    id: number;
+    id: string;
     name: string;
-    image_url: string;
     created_at: string;
     updated_at: string;
 }
@@ -13,6 +12,7 @@ export interface PaginationParams {
     page_size?: number;
     order_by?: string;
     order_dir?: 'asc' | 'desc';
+    search?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -31,22 +31,22 @@ export const categoryApi = {
         return data.data;
     },
 
-    async getById(id: number) {
+    async getById(id: string) {
         const { data } = await api.get<{ data: Category }>(`/categories/${id}`);
         return data.data;
     },
 
-    async create(payload: { name: string; image_url?: string }) {
+    async create(payload: { name: string }) {
         const { data } = await api.post<{ data: Category }>('/categories', payload);
         return data.data;
     },
 
-    async update(id: number, payload: { name?: string; image_url?: string }) {
+    async update(id: string, payload: { name?: string }) {
         const { data } = await api.put(`/categories/${id}`, payload);
         return data;
     },
 
-    async remove(id: number) {
+    async remove(id: string) {
         const { data } = await api.delete(`/categories/${id}`);
         return data;
     }

@@ -4,10 +4,12 @@ import type { PaginationParams, PaginatedResponse } from './categoryApi';
 export type OrderStatus = 'Open' | 'Paid' | 'Cancelled' | 'Ready';
 
 export interface Order {
-    id: number;
+    id: string;
     order_code: string;
     table_id: number | null;
-    staff_id: number;
+    customer_name: string | null;
+    staff_id: string;
+    staff_name: string;
     total_amount: number;
     discount_type: string | null;
     discount_value: number;
@@ -19,8 +21,8 @@ export interface Order {
 }
 
 export interface OrderItem {
-    id: number;
-    product_id: number;
+    id: string;
+    product_id: string;
     product_name?: string;
     quantity: number;
     price: number;
@@ -34,8 +36,8 @@ export interface OrderDetail extends Order {
 }
 
 export interface Payment {
-    id: number;
-    order_id: number;
+    id: string;
+    order_id: string;
     payment_method: 'Cash' | 'Card' | 'Digital Wallet';
     amount_paid: number;
     timestamp: string;
@@ -48,7 +50,8 @@ export interface OrderListParams extends PaginationParams {
 
 export interface CreateOrderPayload {
     table_id?: number | null;
-    items: { product_id: number; quantity: number }[];
+    customer_name?: string | null;
+    items: { product_id: string; quantity: number }[];
 }
 
 export const orderApi = {
@@ -57,7 +60,7 @@ export const orderApi = {
         return data.data;
     },
 
-    async getById(id: number) {
+    async getById(id: string) {
         const { data } = await api.get<{ data: OrderDetail }>(`/orders/${id}`);
         return data.data;
     },
@@ -67,17 +70,17 @@ export const orderApi = {
         return data.data;
     },
 
-    async updateStatus(id: number, status: OrderStatus) {
+    async updateStatus(id: string, status: OrderStatus) {
         const { data } = await api.patch(`/orders/${id}/status`, { status });
         return data;
     },
 
-    async cancel(id: number) {
+    async cancel(id: string) {
         const { data } = await api.delete(`/orders/${id}`);
         return data;
     },
 
-    async addItem(orderId: number, productId: number, quantity: number) {
+    async addItem(orderId: string, productId: string, quantity: number) {
         const { data } = await api.post<{ data: OrderDetail }>(`/orders/${orderId}/items`, {
             product_id: productId,
             quantity
@@ -85,12 +88,12 @@ export const orderApi = {
         return data.data;
     },
 
-    async removeItem(orderId: number, itemId: number) {
+    async removeItem(orderId: string, itemId: string) {
         const { data } = await api.delete<{ data: OrderDetail }>(`/orders/${orderId}/items/${itemId}`);
         return data.data;
     },
 
-    async updateItemServedQty(orderId: number, itemId: number, servedQty: number) {
+    async updateItemServedQty(orderId: string, itemId: string, servedQty: number) {
         const { data } = await api.patch<{ data: OrderDetail }>(`/orders/${orderId}/items/${itemId}/served`, {
             served_qty: servedQty
         });
