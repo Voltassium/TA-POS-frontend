@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { useProductStore } from '@/stores/productStore';
-import { useCategoryStore } from '@/stores/categoryStore';
-import type { Product } from '@/api/productApi';
-import type { ProductType } from '@/api/productApi';
+import type { Product, ProductType } from '@/api/productApi';
 import { productApi } from '@/api/productApi';
+import { useCategoryStore } from '@/stores/categoryStore';
+import { useProductStore } from '@/stores/productStore';
 import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -41,7 +40,6 @@ onMounted(async () => {
     try {
         await categoryStore.fetchCategories({ page: 1, page_size: 100 });
     } catch {
-        // Silently fail — categories dropdown will be empty
     }
 });
 

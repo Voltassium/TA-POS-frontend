@@ -8,8 +8,6 @@ import { onMounted, ref } from 'vue';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
-// You might need to adjust the Order interface imports based on your existing code
-
 const toast = useToast();
 const orderHistories = ref<Order[]>([]);
 const loading = ref(false);
@@ -45,18 +43,33 @@ const formatCurrency = (value: number) => {
     return (value ?? 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
 };
 
-const getStatusLabel = (status: string) => {
+const getStatusSeverity = (status: string) => {
     switch (status) {
         case 'Paid':
             return 'success';
-        case 'Open':
+        case 'New':
             return 'info';
-        case 'Ready':
-            return 'warning';
+        case 'Completed':
+            return 'success';
         case 'Cancelled':
             return 'danger';
         default:
             return 'info';
+    }
+};
+
+const getStatusLabel = (status: string) => {
+    switch (status) {
+        case 'New':
+            return 'Baru';
+        case 'Paid':
+            return 'Lunas';
+        case 'Completed':
+            return 'Selesai';
+        case 'Cancelled':
+            return 'Dibatalkan';
+        default:
+            return status;
     }
 };
 
@@ -155,7 +168,7 @@ onMounted(() => {
                 </Column>
                 <Column field="status" header="Status" style="min-width: 12rem">
                     <template #body="{ data }">
-                        <Tag :value="data.status" :severity="getStatusLabel(data.status)" />
+                        <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
                     </template>
                 </Column>
                 <Column field="created_at" header="Tanggal" style="min-width: 12rem">

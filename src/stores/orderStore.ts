@@ -1,9 +1,9 @@
-import { defineStore } from 'pinia';
+import type { CreateOrderPayload, Order, OrderDetail, OrderListParams, OrderStatus } from '@/api/orderApi';
 import { orderApi } from '@/api/orderApi';
-import type { Order, OrderDetail, OrderListParams, CreateOrderPayload } from '@/api/orderApi';
-import { saveOfflineOrder, getOfflineOrderCount } from '@/utils/offlineDb';
+import { getOfflineOrderCount, saveOfflineOrder } from '@/utils/offlineDb';
 import { syncOfflineOrders } from '@/utils/offlineSync';
 import type { AxiosError } from 'axios';
+import { defineStore } from 'pinia';
 
 interface OrderState {
     orders: Order[];
@@ -62,18 +62,16 @@ export const useOrderStore = defineStore('order', {
                 return created;
             } catch (err) {
                 const axiosErr = err as AxiosError;
-                // Network error (no response) — save offline
                 if (!axiosErr.response) {
                     await saveOfflineOrder(payload);
                     await this.refreshOfflineCount();
                     return { offline: true };
                 }
-                // Server returned an actual error (4xx/5xx) — re-throw
                 throw err;
             }
         },
 
-        async updateOrderStatus(id: string, status: 'Open' | 'Paid' | 'Cancelled' | 'Ready') {
+        async updateOrderStatus(id: string, status: OrderStatus) {
             await orderApi.updateStatus(id, status);
         },
 
@@ -99,15 +97,11 @@ export const useOrderStore = defineStore('order', {
             return updated;
         },
 
-        /** Refresh the count of pending offline orders from IndexedDB. */
         async refreshOfflineCount() {
             this.offlineCount = await getOfflineOrderCount();
         },
 
-        /**
-         * Sync all pending offline orders to the backend.
-         * Returns the number of successfully synced and failed orders.
-         */
+
         async syncPendingOrders() {
             const result = await syncOfflineOrders();
             await this.refreshOfflineCount();

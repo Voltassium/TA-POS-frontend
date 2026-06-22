@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { orderApi } from '@/api/orderApi';
 import type { OrderDetail, OrderItem } from '@/api/orderApi';
+import { orderApi } from '@/api/orderApi';
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 const toast = useToast();
 const orders = ref<OrderDetail[]>([]);
@@ -24,11 +24,9 @@ async function loadKitchenOrders() {
     loading.value = true;
     try {
         const result = await orderApi.list({ page: 1, page_size: 50, status: 'Paid' });
-        // Fetch full details for each order so we get items with served_qty
         const details = await Promise.all(result.data.map((o: any) => orderApi.getById(o.id)));
         orders.value = details;
     } catch {
-        // Silently fail on auto-refresh
     } finally {
         loading.value = false;
     }
@@ -56,12 +54,10 @@ async function incrementServed(order: OrderDetail, item: OrderItem) {
     const newQty = (item.served_qty || 0) + 1;
     try {
         const updated = await orderApi.updateItemServedQty(order.id, item.id, newQty);
-        // If order became Ready, remove it from the list
-        if (updated.status === 'Ready') {
+        if (updated.status === 'Completed') {
             orders.value = orders.value.filter((o) => o.id !== order.id);
             toast.add({ severity: 'success', summary: 'Selesai!', detail: `Pesanan ${order.order_code} selesai dan siap disajikan!`, life: 3000 });
         } else {
-            // Update the order in-place
             const idx = orders.value.findIndex((o) => o.id === order.id);
             if (idx !== -1) orders.value[idx] = updated;
         }
@@ -84,7 +80,6 @@ async function decrementServed(order: OrderDetail, item: OrderItem) {
 
 async function markAllServed(order: OrderDetail) {
     try {
-        // Mark each unfinished item as fully served
         for (const item of order.items) {
             if ((item.served_qty || 0) < item.quantity) {
                 await orderApi.updateItemServedQty(order.id, item.id, item.quantity);

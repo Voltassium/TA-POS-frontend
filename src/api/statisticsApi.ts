@@ -19,9 +19,17 @@ export interface DashboardStats {
     total_expenses: number;
 }
 
+export interface FinanceChartData {
+    date: string;
+    revenue: number;
+    expenses: number;
+    profit: number;
+}
+
 export interface DashboardResponse {
     stats: DashboardStats;
     sales_chart: SalesData[];
+    finance_chart: FinanceChartData[];
     top_products: TopSellingProduct[];
 }
 

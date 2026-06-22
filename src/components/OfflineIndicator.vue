@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
 import { useOrderStore } from '@/stores/orderStore';
 import { useToast } from 'primevue/usetoast';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 const toast = useToast();
 const orderStore = useOrderStore();
@@ -58,9 +58,7 @@ onMounted(async () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Check for pending orders on mount
     await orderStore.refreshOfflineCount();
-    // If we're online and have pending orders, sync immediately
     if (navigator.onLine && orderStore.offlineCount > 0) {
         await autoSync();
     }

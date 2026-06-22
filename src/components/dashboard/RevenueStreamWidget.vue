@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import type { FinanceChartData } from '@/api/statisticsApi';
 import { useLayout } from '@/layout/composables/layout';
 import { onMounted, ref, watch } from 'vue';
-import type { DashboardStats } from '@/api/statisticsApi';
 
 const props = defineProps<{
-    comparisonStats: Record<'daily' | 'weekly' | 'monthly', DashboardStats | null>
+    financeData: FinanceChartData[]
 }>();
 
 const { layoutConfig, isDarkTheme } = useLayout();
@@ -15,36 +15,41 @@ const chartOptions = ref(null);
 function setChartData() {
     const documentStyle = getComputedStyle(document.documentElement);
 
-    const labels = ['Hari Ini', 'Minggu Ini', 'Bulan Ini'];
-    const periods = ['daily', 'weekly', 'monthly'] as const;
+    const labels = props.financeData?.map(d => d.date) || [];
     
-    const salesData = periods.map(p => props.comparisonStats[p]?.total_revenue || 0);
-    const expensesData = periods.map(p => props.comparisonStats[p]?.total_expenses || 0);
-    const profitData = periods.map(p => props.comparisonStats[p]?.total_profit || 0);
+    const salesData = props.financeData?.map(d => d.revenue) || [];
+    const expensesData = props.financeData?.map(d => d.expenses) || [];
+    const profitData = props.financeData?.map(d => d.profit) || [];
 
     return {
         labels: labels,
         datasets: [
             {
-                type: 'bar',
+                type: 'line',
                 label: 'Penjualan (IDR)',
+                borderColor: documentStyle.getPropertyValue('--p-green-500'),
                 backgroundColor: documentStyle.getPropertyValue('--p-green-500'),
+                borderWidth: 2,
+                fill: false,
+                tension: 0.4,
                 data: salesData,
-                barThickness: 32
             },
             {
-                type: 'bar',
+                type: 'line',
                 label: 'Pengeluaran (IDR)',
+                borderColor: documentStyle.getPropertyValue('--p-red-500'),
                 backgroundColor: documentStyle.getPropertyValue('--p-red-500'),
+                borderWidth: 2,
+                fill: false,
+                tension: 0.4,
                 data: expensesData,
-                barThickness: 32
             },
             {
                 type: 'bar',
                 label: 'Laba Bersih (IDR)',
                 backgroundColor: documentStyle.getPropertyValue('--p-blue-500'),
                 data: profitData,
-                barThickness: 32
+                borderRadius: 4
             }
         ]
     };
@@ -58,6 +63,22 @@ function setChartOptions() {
     return {
         maintainAspectRatio: false,
         aspectRatio: 0.8,
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context: any) {
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(context.parsed.y);
+                        }
+                        return label;
+                    }
+                }
+            }
+        },
         scales: {
             x: {
                 stacked: false,
@@ -72,7 +93,16 @@ function setChartOptions() {
             y: {
                 stacked: false,
                 ticks: {
-                    color: textMutedColor
+                    color: textMutedColor,
+                    callback: function(value: number) {
+                        if (value === 0) return 'Rp 0';
+                        if (Math.abs(value) >= 1000000) {
+                            return 'Rp ' + (value / 1000000).toFixed(1) + 'Jt';
+                        } else if (Math.abs(value) >= 1000) {
+                            return 'Rp ' + (value / 1000).toFixed(0) + 'Rb';
+                        }
+                        return 'Rp ' + value;
+                    }
                 },
                 grid: {
                     color: borderColor,
@@ -84,7 +114,7 @@ function setChartOptions() {
     };
 }
 
-watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () => props.comparisonStats], () => {
+watch([() => layoutConfig.primary, () => layoutConfig.surface, isDarkTheme, () => props.financeData], () => {
     chartData.value = setChartData() as any;
     chartOptions.value = setChartOptions() as any;
 }, { deep: true });
@@ -97,7 +127,7 @@ onMounted(() => {
 
 <template>
     <div class="card">
-        <div class="font-semibold text-xl mb-4">Perbandingan Keuangan (Harian, Mingguan, Bulanan)</div>
-        <Chart type="bar" :data="chartData" :options="chartOptions" class="h-80" />
+        <div class="font-semibold text-xl mb-4">Grafik Perbandingan Keuangan</div>
+        <Chart type="line" :data="chartData" :options="chartOptions" class="h-80" />
     </div>
 </template>

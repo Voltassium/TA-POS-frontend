@@ -57,7 +57,7 @@ onMounted(() => {
             <StatsWidget v-if="statisticsStore.dashboardData" :stats="statisticsStore.dashboardData.stats" :rangeLabel="rangeLabel" />
 
         <div class="col-span-12 xl:col-span-12">
-            <RevenueStreamWidget :comparisonStats="statisticsStore.comparisonStats" />
+            <RevenueStreamWidget v-if="statisticsStore.dashboardData" :financeData="statisticsStore.dashboardData.finance_chart" />
         </div>
         
         <div class="col-span-12 xl:col-span-12">

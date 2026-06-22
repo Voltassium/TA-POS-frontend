@@ -1,6 +1,6 @@
-import { defineStore } from 'pinia';
 import { authApi } from '@/api/authApi';
 import api from '@/api/axiosInstance';
+import { defineStore } from 'pinia';
 
 export interface UserProfile {
     id: string;
@@ -116,8 +116,6 @@ export const useAuthStore = defineStore('auth', {
                 const { data } = await api.get<{ data: UserProfile }>('/users/profile');
                 this.user = data.data;
             } catch (err) {
-                // If profile fetch fails due to 401 the interceptor will handle redirect.
-                // For any other error, just clear user state — caller can handle the error.
                 this.user = null;
                 throw err;
             } finally {

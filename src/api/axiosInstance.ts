@@ -1,7 +1,7 @@
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/v1';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -45,18 +45,14 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // Only attempt refresh on 401 responses that haven't been retried yet
         if (error.response?.status === 401 && !originalRequest._retry) {
             const accessToken = localStorage.getItem('access_token');
             const refreshToken = localStorage.getItem('refresh_token');
 
-            // No tokens at all — user was never logged in.
-            // Just reject so the calling code can show a toast / error message.
             if (!accessToken && !refreshToken) {
                 return Promise.reject(error);
             }
 
-            // If a refresh is already in progress, queue this request
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
@@ -70,14 +66,12 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             if (!refreshToken) {
-                // Had an access token but no refresh token — clear and reject
                 isRefreshing = false;
                 localStorage.removeItem('access_token');
                 return Promise.reject(error);
             }
 
             try {
-                // Use a standalone axios call to avoid the interceptor re-triggering
                 const { data } = await axios.post(`${API_BASE_URL}/authentications/refresh-token`, {
                     refresh_token: refreshToken
                 });
@@ -90,7 +84,6 @@ api.interceptors.response.use(
                 processQueue(refreshError, null);
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                // Session truly expired — redirect to login
                 window.location.href = '/auth/login';
                 return Promise.reject(refreshError);
             } finally {

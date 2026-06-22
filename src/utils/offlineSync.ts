@@ -1,5 +1,5 @@
 import { orderApi } from '@/api/orderApi';
-import { getAllOfflineOrders, deleteOfflineOrder } from './offlineDb';
+import { deleteOfflineOrder, getAllOfflineOrders } from './offlineDb';
 
 export interface SyncResult {
     synced: number;
@@ -24,13 +24,11 @@ export async function syncOfflineOrders(): Promise<SyncResult> {
     for (const entry of pendingOrders) {
         try {
             await orderApi.create(entry.payload);
-            // Successfully synced — remove from offline queue
             if (entry.id !== undefined) {
                 await deleteOfflineOrder(entry.id);
             }
             synced++;
         } catch {
-            // Network still down or server error — keep in queue
             failed++;
         }
     }

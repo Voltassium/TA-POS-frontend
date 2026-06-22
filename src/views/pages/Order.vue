@@ -2,9 +2,9 @@
 import type { Order } from '@/api/orderApi';
 import type { PaymentCreatePayload } from '@/api/paymentApi';
 import { paymentApi } from '@/api/paymentApi';
-import { generateReceiptPdf } from '@/utils/generateReceiptPdf';
 import { useOrderStore } from '@/stores/orderStore';
 import { useProductStore } from '@/stores/productStore';
+import { generateReceiptPdf } from '@/utils/generateReceiptPdf';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
@@ -33,7 +33,7 @@ const lazyParams = ref({
 });
 const statusOptions = ref([
     { label: 'Semua', value: null },
-    { label: 'Buka', value: 'Open' },
+    { label: 'Baru', value: 'New' },
     { label: 'Lunas', value: 'Paid' },
     { label: 'Dibatalkan', value: 'Cancelled' }
 ]);
@@ -81,7 +81,7 @@ async function loadOrders() {
         if (statusFilter.value) {
             params.status = statusFilter.value;
         } else {
-            params.exclude_status = 'Ready';
+            params.exclude_status = 'Completed';
         }
         if (searchQuery.value) {
             params.search = searchQuery.value;
@@ -243,7 +243,7 @@ async function saveOrder() {
     }
 }
 
-async function updateStatus(ord: Order, newStatus: 'Open' | 'Paid' | 'Cancelled') {
+async function updateStatus(ord: Order, newStatus: 'New' | 'Paid' | 'Cancelled') {
     try {
         await orderStore.updateOrderStatus(ord.id, newStatus);
         toast.add({ severity: 'success', summary: 'Berhasil', detail: `Status pesanan diperbarui`, life: 3000 });
@@ -267,7 +267,7 @@ async function cancelOrder() {
 
 function getStatusSeverity(status: string) {
     switch (status) {
-        case 'Open': return 'info';
+        case 'New': return 'info';
         case 'Paid': return 'success';
         case 'Cancelled': return 'danger';
         default: return undefined;
@@ -276,10 +276,10 @@ function getStatusSeverity(status: string) {
 
 function getStatusLabel(status: string) {
     switch (status) {
-        case 'Open': return 'Buka';
+        case 'New': return 'Baru';
         case 'Paid': return 'Lunas';
         case 'Cancelled': return 'Dibatalkan';
-        case 'Ready': return 'Siap';
+        case 'Completed': return 'Selesai';
         default: return status;
     }
 }
@@ -296,7 +296,6 @@ function formatTableId(tableId: number | null) {
 function printReceipt() {
     if (!orderStore.selectedOrder) return;
 
-    // Revoke any previous blob URL
     if (receiptPreviewUrl.value) {
         URL.revokeObjectURL(receiptPreviewUrl.value);
     }
@@ -411,7 +410,7 @@ onUnmounted(() => {
                             <div class="flex gap-2 justify-end mt-auto pt-4">
                                 <Button icon="pi pi-eye" outlined rounded @click="viewOrderDetail(ord)" v-tooltip.top="'Lihat Detail'" />
                                 <Button
-                                    v-if="ord.status === 'Open'"
+                                    v-if="ord.status === 'New'"
                                     icon="pi pi-wallet"
                                     outlined
                                     rounded
@@ -420,7 +419,7 @@ onUnmounted(() => {
                                     v-tooltip.top="'Bayar'"
                                 />
                                 <Button
-                                    v-if="ord.status === 'Open'"
+                                    v-if="ord.status === 'New'"
                                     icon="pi pi-times"
                                     outlined
                                     rounded

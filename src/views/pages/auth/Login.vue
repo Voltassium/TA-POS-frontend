@@ -26,7 +26,6 @@ const handleLogin = async () => {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Login berhasil, selamat datang!', life: 2000 });
         router.push('/');
     } catch (error: any) {
-        // Backend error shape: { status, message, error }
         const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Login gagal. Periksa kembali kredensial Anda.';
         toast.add({ severity: 'error', summary: 'Login Gagal', detail: errorMsg, life: 4000 });
     } finally {

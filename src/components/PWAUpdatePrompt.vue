@@ -3,7 +3,6 @@ import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 const { needRefresh, updateServiceWorker } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
-        // Check for updates every 60 minutes
         if (registration) {
             setInterval(() => {
                 registration.update();

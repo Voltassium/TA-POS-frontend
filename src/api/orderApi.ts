@@ -1,7 +1,7 @@
 import api from './axiosInstance';
 import type { PaginationParams, PaginatedResponse } from './categoryApi';
 
-export type OrderStatus = 'Open' | 'Paid' | 'Cancelled' | 'Ready';
+export type OrderStatus = 'New' | 'Paid' | 'Cancelled' | 'Completed';
 
 export interface Order {
     id: string;
