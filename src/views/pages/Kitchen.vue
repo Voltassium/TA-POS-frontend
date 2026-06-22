@@ -181,7 +181,7 @@ async function markAllServed(order: OrderDetail) {
                         </li>
                     </ul>
                 </template>
-                <template #footer>
+                <!-- <template #footer>
                     <Button
                         label="Pesanan Selesai"
                         icon="pi pi-check"
@@ -189,7 +189,7 @@ async function markAllServed(order: OrderDetail) {
                         class="w-full mt-2"
                         @click="markAllServed(ord)"
                     />
-                </template>
+                </template> -->
             </Card>
         </div>
     </div>

@@ -6,7 +6,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/v1';
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
     }
 });
 
@@ -74,6 +75,10 @@ api.interceptors.response.use(
             try {
                 const { data } = await axios.post(`${API_BASE_URL}/authentications/refresh-token`, {
                     refresh_token: refreshToken
+                }, {
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    }
                 });
                 const newAccessToken = data.data.access_token;
                 localStorage.setItem('access_token', newAccessToken);
