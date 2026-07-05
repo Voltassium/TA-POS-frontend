@@ -11,7 +11,6 @@ export interface Product {
     sku?: string | null;
     harga_beli?: number | null;
     name: string;
-    description: string;
     price: number;
     stock: number;
     is_available: boolean;
@@ -25,7 +24,6 @@ export interface ProductCreatePayload {
     sku?: string | null;
     harga_beli?: number | null;
     name: string;
-    description?: string;
     price: number;
     stock?: number;
     is_available?: boolean;

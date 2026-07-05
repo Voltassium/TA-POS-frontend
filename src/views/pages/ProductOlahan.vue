@@ -29,6 +29,30 @@ const lazyParams = ref<any>({
     product_type: 'Olahan'
 });
 
+const showDetailDialog = ref(false);
+const selectedProduct = ref<Product | null>(null);
+
+function onRowClick(event: { data: Product }) {
+    selectedProduct.value = event.data;
+    showDetailDialog.value = true;
+}
+
+function onEditFromDetail() {
+    if (selectedProduct.value) {
+        const prod = selectedProduct.value;
+        showDetailDialog.value = false;
+        editProduct(prod);
+    }
+}
+
+function onDeleteFromDetail() {
+    if (selectedProduct.value) {
+        const prod = selectedProduct.value;
+        showDetailDialog.value = false;
+        confirmDeleteProduct(prod);
+    }
+}
+
 const categoryOptions = computed(() =>
     categoryStore.categories.map((c) => ({ label: c.name, value: c.id }))
 );
@@ -94,7 +118,12 @@ function confirmDeleteProduct(prod: Product) {
 }
 
 function formatCurrency(value: number) {
-    if (value != null) return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+    if (value != null) return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    return '-';
+}
+
+function formatNumber(value: number) {
+    if (value != null) return value.toLocaleString('id-ID');
     return '-';
 }
 
@@ -112,9 +141,9 @@ async function saveProduct() {
             sku: product.value.sku || null,
             harga_beli: null,
             name: product.value.name,
-            description: product.value.description || '',
             price: product.value.price,
-            is_available: product.value.is_available ?? true
+            stock: 0,
+            is_available: true
         };
 
         if (product.value.id) {
@@ -148,14 +177,11 @@ async function deleteProduct() {
 async function exportExcel() {
     try {
         const response = await productApi.list({ page: 1, page_size: 1000, product_type: 'Olahan' });
-        const formatCurrencyVal = (v: number) => v != null ? v.toLocaleString('id-ID') : '-';
         exportToExcel(response.data, [
             { header: 'SKU', key: 'sku', width: 15, format: (v: string) => v || '-' },
             { header: 'Nama', key: 'name', width: 25 },
             { header: 'Kategori', key: 'category_name', width: 18 },
-            { header: 'Harga Jual', key: 'price', width: 18, format: (v: number) => formatCurrencyVal(v) },
-            { header: 'Stok', key: 'stock', width: 10 },
-            { header: 'Ketersediaan', key: 'is_available', width: 15, format: (v: boolean) => v ? 'Tersedia' : 'Habis' },
+            { header: 'Harga Jual', key: 'price', width: 18, format: (v: number) => v != null ? v.toLocaleString('id-ID') : '-' },
             { header: 'Dibuat', key: 'created_at', width: 18, format: (v: string) => new Date(v).toLocaleDateString('id-ID') }
         ], 'Produk_Olahan');
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
@@ -188,6 +214,8 @@ async function exportExcel() {
                 :lazy="true"
                 :filters="filters"
                 @page="onPage"
+                @row-click="onRowClick"
+                :rowClass="() => 'cursor-pointer'"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} produk"
@@ -195,13 +223,17 @@ async function exportExcel() {
                 <template #header>
                     <div class="flex flex-wrap gap-2 items-center justify-between">
                         <h4 class="m-0">Kelola Produk Olahan</h4>
-                        <IconField>
-                            <InputIcon>
-                                <i class="pi pi-search" />
-                            </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
-                        </IconField>
-                        <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
+                        <div class="flex items-center gap-2">
+                            <IconField>
+                                <InputIcon>
+                                    <i class="pi pi-search" />
+                                </InputIcon>
+                                <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
+                            </IconField>
+                            <div class="w-8 h-8 flex items-center justify-center">
+                                <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" class="w-8 h-8 !p-0" />
+                            </div>
+                        </div>
                     </div>
                 </template>
 
@@ -214,16 +246,9 @@ async function exportExcel() {
                 </Column>
                 <Column field="name" header="Nama" sortable style="min-width: 14rem"></Column>
                 <Column field="category_name" header="Kategori" sortable style="min-width: 10rem"></Column>
-                <Column field="price" header="Harga Jual" sortable style="min-width: 8rem">
+                <Column field="price" header="Harga Jual (Rp)" sortable style="min-width: 8rem; text-align: right">
                     <template #body="slotProps">
-                        {{ formatCurrency(slotProps.data.price) }}
-                    </template>
-                </Column>
-
-                <Column field="stock" header="Stok" sortable style="min-width: 8rem"></Column>
-                <Column field="is_available" header="Ketersediaan" sortable style="min-width: 8rem">
-                    <template #body="slotProps">
-                        <Tag :value="slotProps.data.is_available ? 'Tersedia' : 'Habis'" :severity="slotProps.data.is_available ? 'success' : 'danger'" />
+                        {{ formatNumber(slotProps.data.price) }}
                     </template>
                 </Column>
                 <Column field="created_at" header="Dibuat" sortable style="min-width: 12rem">
@@ -231,16 +256,74 @@ async function exportExcel() {
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
                     </template>
                 </Column>
-                <Column :exportable="false" style="min-width: 12rem">
-                    <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" v-tooltip.top="'Edit'" />
-                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" v-tooltip.top="'Hapus'" />
-                    </template>
-                </Column>
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="productDialog" :style="{ width: '500px' }" header="Detail Produk" :modal="true">
+        <!-- ======== Dialog: Detail Produk ======== -->
+        <Dialog
+            v-model:visible="showDetailDialog"
+            modal
+            header="Detail Produk"
+            :style="{ width: '450px' }"
+            id="dialog-detail-produk"
+        >
+            <div class="flex flex-col gap-4 pt-2" v-if="selectedProduct">
+                <div>
+                    <p class="m-0 font-semibold text-lg">{{ selectedProduct.name }}</p>
+                    <p class="text-surface-500 text-sm mt-1 mb-0" v-if="selectedProduct.sku">SKU: {{ selectedProduct.sku }}</p>
+                </div>
+                
+                <hr class="border-surface-200 dark:border-surface-700 m-0" />
+
+                <div class="flex flex-col gap-3">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-surface-500 font-medium">Kategori:</span>
+                        <span class="text-surface-700 dark:text-surface-300">{{ selectedProduct.category_name }}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm" v-if="isKulakan">
+                         <span class="text-surface-500 font-medium">Harga Beli:</span>
+                         <span class="text-surface-700 dark:text-surface-300">{{ formatCurrency(selectedProduct.harga_beli) }}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-surface-500 font-medium">Harga Jual:</span>
+                        <span class="text-surface-700 dark:text-surface-300 font-semibold">{{ formatCurrency(selectedProduct.price) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-surface-500 font-medium">Dibuat:</span>
+                        <span class="text-surface-700 dark:text-surface-300">{{ new Date(selectedProduct.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="flex justify-between w-full">
+                    <div class="flex gap-2">
+                        <Button
+                            id="btn-edit-detail"
+                            label="Edit"
+                            icon="pi pi-pencil"
+                            severity="info"
+                            outlined
+                            @click="onEditFromDetail"
+                        />
+                        <Button
+                            id="btn-delete-detail"
+                            label="Hapus"
+                            icon="pi pi-trash"
+                            severity="danger"
+                            outlined
+                            @click="onDeleteFromDetail"
+                        />
+                    </div>
+                    <Button label="Tutup" severity="secondary" text @click="showDetailDialog = false" />
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Dialog: Tambah/Edit Produk -->
+        <Dialog v-model:visible="productDialog" :style="{ width: '500px' }" :header="product.id ? 'Edit Produk' : 'Tambah Produk'" :modal="true">
             <div class="flex flex-col gap-6">
                 <div>
                     <label for="name" class="block font-bold mb-3">Nama</label>
@@ -251,10 +334,7 @@ async function exportExcel() {
                     <label for="sku" class="block font-bold mb-3">SKU</label>
                     <InputText id="sku" v-model.trim="product.sku" fluid />
                 </div>
-                <div>
-                    <label for="description" class="block font-bold mb-3">Deskripsi</label>
-                    <Textarea id="description" v-model="product.description" rows="3" cols="20" fluid />
-                </div>
+
                 <div>
                     <label for="category" class="block font-bold mb-3">Kategori</label>
                     <Select
@@ -270,21 +350,10 @@ async function exportExcel() {
                     <small v-if="submitted && !product.category_id" class="text-red-500">Kategori wajib dipilih.</small>
                 </div>
 
-                <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-6">
-                        <label for="price" class="block font-bold mb-3">Harga Jual</label>
-                        <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :invalid="submitted && (product.price == null || product.price < 0)" fluid />
-                        <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga jual wajib diisi.</small>
-                    </div>
-
-                    <div class="col-span-4">
-                        <label for="stock" class="block font-bold mb-3">Stok</label>
-                        <InputNumber id="stock" v-model="product.stock" fluid />
-                    </div>
-                    <div class="col-span-4">
-                        <label for="is_available" class="block font-bold mb-3">Ketersediaan</label>
-                        <ToggleSwitch id="is_available" v-model="product.is_available" />
-                    </div>
+                <div>
+                    <label for="price" class="block font-bold mb-3">Harga Jual</label>
+                    <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :invalid="submitted && (product.price == null || product.price < 0)" fluid />
+                    <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga jual wajib diisi.</small>
                 </div>
             </div>
 

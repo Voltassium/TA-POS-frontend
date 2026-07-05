@@ -82,7 +82,7 @@ function confirmDeleteItem(row: Pengeluaran) {
 }
 
 function formatCurrency(value: number) {
-    if (value != null) return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+    if (value != null) return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
     return '-';
 }
 
@@ -138,12 +138,33 @@ async function deleteItem() {
     }
 }
 
+const dateRange = ref<Date[] | null>(null);
+
+function formatDateToYmd(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function onFilterDate() {
+    if (dateRange.value && dateRange.value[0]) {
+        lazyParams.value.start_date = formatDateToYmd(dateRange.value[0]);
+        if (dateRange.value[1]) {
+            lazyParams.value.end_date = formatDateToYmd(dateRange.value[1]);
+        } else {
+            lazyParams.value.end_date = lazyParams.value.start_date;
+        }
+    } else {
+        lazyParams.value.start_date = undefined;
+        lazyParams.value.end_date = undefined;
+    }
     lazyParams.value.page = 1;
     loadItems();
 }
 
 function clearDateFilter() {
+    dateRange.value = null;
     lazyParams.value.start_date = undefined;
     lazyParams.value.end_date = undefined;
     lazyParams.value.page = 1;
@@ -213,22 +234,35 @@ async function exportExcel() {
                 currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} pengeluaran"
             >
                 <template #header>
-                    <div class="flex flex-wrap gap-2 items-center justify-between">
-                        <h4 class="m-0">Kelola Pengeluaran</h4>
-                        <div class="flex gap-2 items-center flex-wrap">
-                            <IconField>
-                                <InputIcon>
-                                    <i class="pi pi-search" />
-                                </InputIcon>
-                                <InputText v-model="lazyParams.search" placeholder="Cari kategori/keterangan..." @input="onSearchInput" @keydown.enter="onSearchInput" />
-                            </IconField>
-                            <Button v-if="lazyParams.search" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
-                            <span class="text-surface-300">|</span>
-                            <InputText v-model="lazyParams.start_date" type="date" placeholder="Dari tanggal" />
-                            <span>—</span>
-                            <InputText v-model="lazyParams.end_date" type="date" placeholder="Sampai tanggal" />
-                            <Button icon="pi pi-filter" severity="secondary" @click="onFilterDate" v-tooltip.top="'Filter Tanggal'" />
-                            <Button icon="pi pi-filter-slash" severity="danger" outlined @click="clearDateFilter" v-tooltip.top="'Hapus Filter Tanggal'" />
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h4 class="m-0 text-xl font-bold">Kelola Pengeluaran</h4>
+                        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full md:w-auto">
+                            <!-- Search -->
+                            <div class="flex items-center gap-2">
+                                <IconField class="flex-1 sm:w-64">
+                                    <InputIcon>
+                                        <i class="pi pi-search" />
+                                    </InputIcon>
+                                    <InputText v-model="lazyParams.search" placeholder="Cari..." class="w-full" @input="onSearchInput" @keydown.enter="onSearchInput" />
+                                </IconField>
+                                <Button v-if="lazyParams.search" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
+                            </div>
+                            <span class="hidden sm:inline text-surface-300">|</span>
+                            <!-- Date Range Picker -->
+                            <div class="flex items-center gap-2">
+                                <DatePicker
+                                    v-model="dateRange"
+                                    selectionMode="range"
+                                    :manualInput="false"
+                                    placeholder="Filter Tanggal"
+                                    showIcon
+                                    iconDisplay="input"
+                                    dateFormat="dd/mm/yy"
+                                    class="flex-1 sm:w-60"
+                                />
+                                <Button icon="pi pi-filter" severity="secondary" @click="onFilterDate" v-tooltip.top="'Filter Tanggal'" />
+                                <Button v-if="dateRange" icon="pi pi-filter-slash" severity="danger" outlined @click="clearDateFilter" v-tooltip.top="'Hapus Filter Tanggal'" />
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -260,12 +294,7 @@ async function exportExcel() {
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
                     </template>
                 </Column>
-                <Column :exportable="false" style="min-width: 10rem">
-                    <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editItem(slotProps.data)" v-tooltip.top="'Edit'" />
-                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteItem(slotProps.data)" v-tooltip.top="'Hapus'" />
-                    </template>
-                </Column>
+
             </DataTable>
         </div>
 

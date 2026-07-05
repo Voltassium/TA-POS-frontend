@@ -30,6 +30,31 @@ const showDeleteDialog = ref(false);
 const deletingUser = ref<UserItem | null>(null);
 const deleteLoading = ref(false);
 
+// Dialog detail akun
+const showDetailDialog = ref(false);
+const selectedUser = ref<UserItem | null>(null);
+
+function onRowClick(event: { data: UserItem }) {
+    selectedUser.value = event.data;
+    showDetailDialog.value = true;
+}
+
+function onEditFromDetail() {
+    if (selectedUser.value) {
+        const u = selectedUser.value;
+        showDetailDialog.value = false;
+        openEditDialog(u);
+    }
+}
+
+function onDeleteFromDetail() {
+    if (selectedUser.value) {
+        const u = selectedUser.value;
+        showDetailDialog.value = false;
+        openDeleteDialog(u);
+    }
+}
+
 // Role yang bisa dipilih saat mendaftarkan akun
 const roleOptions = computed(() => {
     const base = [
@@ -188,6 +213,8 @@ onMounted(() => {
                 lazy
                 paginator
                 @page="onPageChange"
+                @row-click="onRowClick"
+                :rowClass="() => 'cursor-pointer'"
                 :rowsPerPageOptions="[10, 25, 50]"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                 currentPageReportTemplate="Menampilkan {first}-{last} dari {totalRecords} akun"
@@ -203,11 +230,7 @@ onMounted(() => {
 
                 <Column field="email" header="Email" sortable>
                     <template #body="{ data }">
-                        <div class="flex items-center gap-2">
-                            <Avatar :label="data.email[0].toUpperCase()" shape="circle" size="small"
-                                class="bg-primary text-white font-bold" />
-                            <span class="font-medium">{{ data.email }}</span>
-                        </div>
+                        <span class="font-medium">{{ data.email }}</span>
                     </template>
                 </Column>
 
@@ -226,34 +249,64 @@ onMounted(() => {
                     </template>
                 </Column>
 
-                <Column header="Aksi" style="width: 130px">
-                    <template #body="{ data }">
-                        <div class="flex gap-2">
-                            <Button
-                                :id="`btn-edit-${data.id}`"
-                                icon="pi pi-pencil"
-                                rounded
-                                text
-                                severity="info"
-                                size="small"
-                                v-tooltip.top="'Edit Akun'"
-                                @click="openEditDialog(data)"
-                            />
-                            <Button
-                                :id="`btn-delete-${data.id}`"
-                                icon="pi pi-trash"
-                                rounded
-                                text
-                                severity="danger"
-                                size="small"
-                                v-tooltip.top="'Hapus Akun'"
-                                @click="openDeleteDialog(data)"
-                            />
-                        </div>
-                    </template>
-                </Column>
             </DataTable>
         </div>
+
+        <!-- ======== Dialog: Detail Akun ======== -->
+        <Dialog
+            v-model:visible="showDetailDialog"
+            modal
+            header="Detail Akun"
+            :style="{ width: '450px' }"
+            id="dialog-detail-akun"
+        >
+            <div class="flex flex-col gap-4 pt-2" v-if="selectedUser">
+                <div>
+                    <p class="m-0 font-semibold text-lg">{{ selectedUser.email }}</p>
+                </div>
+                
+                <hr class="border-surface-200 dark:border-surface-700 m-0" />
+
+                <div class="flex flex-col gap-3">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-surface-500 font-medium">Role:</span>
+                        <Tag
+                            :value="roleLabel[selectedUser.role]?.label ?? selectedUser.role"
+                            :severity="(roleLabel[selectedUser.role]?.severity as any) ?? 'secondary'"
+                        />
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-surface-500 font-medium">Didaftarkan:</span>
+                        <span class="text-surface-700 dark:text-surface-300">{{ formatDate(selectedUser.created_at) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="flex justify-between w-full">
+                    <div class="flex gap-2">
+                        <Button
+                            id="btn-edit-detail"
+                            label="Edit"
+                            icon="pi pi-pencil"
+                            severity="info"
+                            outlined
+                            @click="onEditFromDetail"
+                        />
+                        <Button
+                            id="btn-delete-detail"
+                            label="Hapus"
+                            icon="pi pi-trash"
+                            severity="danger"
+                            outlined
+                            @click="onDeleteFromDetail"
+                        />
+                    </div>
+                    <Button label="Tutup" severity="secondary" text @click="showDetailDialog = false" />
+                </div>
+            </template>
+        </Dialog>
 
         <!-- ======== Dialog: Tambah Akun ======== -->
         <Dialog

@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/authStore';
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import AppMenuItem from './AppMenuItem.vue';
 
 const authStore = useAuthStore();
+const router = useRouter();
 const role = computed(() => authStore.userRole ?? '');
+
+const handleLogout = async () => {
+    await authStore.logout();
+    router.push('/auth/login');
+};
 
 /**
  * Definisi semua item menu beserta roles yang diizinkan.
@@ -81,6 +88,12 @@ const allMenuItems = computed(() => [
                 icon: 'pi pi-fw pi-users',
                 to: '/pages/manajemen-akun',
                 roles: ['superadmin', 'owner']
+            },
+            {
+                label: 'Keluar (Logout)',
+                icon: 'pi pi-fw pi-sign-out',
+                command: handleLogout,
+                class: 'text-red-500 hover:text-red-600'
             }
         ]
     }

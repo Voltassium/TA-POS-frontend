@@ -40,7 +40,7 @@ const loadData = async (event?: any) => {
 };
 
 const formatCurrency = (value: number) => {
-    return (value ?? 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+    return (value ?? 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
 
 const getStatusSeverity = (status: string) => {
@@ -107,6 +107,25 @@ function clearSearch() {
     loadData();
 }
 
+const showDetailDialog = ref(false);
+const selectedOrder = ref<any>(null);
+const detailLoading = ref(false);
+
+async function viewOrderDetails(orderId: string) {
+    detailLoading.value = true;
+    showDetailDialog.value = true;
+    selectedOrder.value = null;
+    try {
+        const data = await orderApi.getById(orderId);
+        selectedOrder.value = data;
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat detail pesanan', life: 3000 });
+        showDetailDialog.value = false;
+    } finally {
+        detailLoading.value = false;
+    }
+}
+
 onMounted(() => {
     loadData();
 });
@@ -133,6 +152,8 @@ onMounted(() => {
                 lazy
                 @page="loadData"
                 @sort="loadData"
+                @row-click="(event) => viewOrderDetails(event.data.id)"
+                :rowClass="() => 'cursor-pointer'"
                 dataKey="id"
                 :rowHover="true"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
@@ -141,16 +162,25 @@ onMounted(() => {
             >
                 <template #header>
                     <div class="flex flex-wrap gap-2 items-center justify-end">
-                        <IconField>
-                            <InputIcon>
-                                <i class="pi pi-search" />
-                            </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
-                        </IconField>
-                        <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
+                        <div class="flex items-center gap-2">
+                            <IconField>
+                                <InputIcon>
+                                    <i class="pi pi-search" />
+                                </InputIcon>
+                                <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
+                            </IconField>
+                            <div class="w-8 h-8 flex items-center justify-center">
+                                <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" class="w-8 h-8 !p-0" />
+                            </div>
+                        </div>
                     </div>
                 </template>
                 <template #empty> Tidak ada pesanan ditemukan. </template>
+                <Column field="created_at" header="Tanggal" style="min-width: 12rem">
+                    <template #body="{ data }">
+                        {{ formatDate(data.created_at) }}
+                    </template>
+                </Column>
                 <Column field="order_code" header="Kode Pesanan" style="min-width: 12rem">
                     <template #body="{ data }">
                         {{ data.order_code }}
@@ -171,12 +201,81 @@ onMounted(() => {
                         <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
                     </template>
                 </Column>
-                <Column field="created_at" header="Tanggal" style="min-width: 12rem">
-                    <template #body="{ data }">
-                        {{ formatDate(data.created_at) }}
-                    </template>
-                </Column>
             </DataTable>
         </div>
+
+        <!-- Dialog Detail Pesanan -->
+        <Dialog v-model:visible="showDetailDialog" modal :header="selectedOrder ? 'Detail Pesanan - ' + selectedOrder.order_code : 'Memuat Detail...'" :style="{ width: '600px' }">
+            <div v-if="detailLoading" class="flex justify-center p-8">
+                <ProgressSpinner />
+            </div>
+            <div v-else-if="selectedOrder" class="flex flex-col gap-4">
+                <!-- Info Ringkas -->
+                <div class="grid grid-cols-2 gap-4 bg-surface-50 dark:bg-surface-900/30 p-4 rounded-lg border border-surface-200 dark:border-surface-700">
+                    <div>
+                        <div class="text-sm text-surface-500 font-medium">Pelanggan</div>
+                        <div class="font-semibold text-lg">{{ selectedOrder.customer_name || '-' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-surface-500 font-medium">Meja</div>
+                        <div class="font-semibold text-lg">{{ selectedOrder.table_id || '-' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-surface-500 font-medium">Kasir</div>
+                        <div class="font-semibold text-lg">{{ selectedOrder.staff_name || '-' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-surface-500 font-medium">Waktu Transaksi</div>
+                        <div class="font-semibold">{{ formatDate(selectedOrder.created_at) }}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-surface-500 font-medium">Status</div>
+                        <Tag :value="getStatusLabel(selectedOrder.status)" :severity="getStatusSeverity(selectedOrder.status)" class="mt-1" />
+                    </div>
+                    <div v-if="selectedOrder.payment">
+                        <div class="text-sm text-surface-500 font-medium">Metode Pembayaran</div>
+                        <div class="font-semibold mt-1">
+                            <Tag :value="selectedOrder.payment.payment_method" severity="info" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daftar Item -->
+                <div>
+                    <h5 class="font-semibold mb-2">Item Pesanan</h5>
+                    <div class="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-surface-100 dark:bg-surface-800 text-sm font-medium border-b border-surface-200 dark:border-surface-700">
+                                    <th class="p-3">Menu</th>
+                                    <th class="p-3 text-right">Harga</th>
+                                    <th class="p-3 text-center">Qty</th>
+                                    <th class="p-3 text-right">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in selectedOrder.items" :key="item.id" class="border-b border-surface-200 dark:border-surface-700 text-sm last:border-0">
+                                    <td class="p-3 font-medium">{{ item.product_name || `Produk #${item.product_id}` }}</td>
+                                    <td class="p-3 text-right">{{ formatCurrency(item.unit_price) }}</td>
+                                    <td class="p-3 text-center">{{ item.quantity }}</td>
+                                    <td class="p-3 text-right font-semibold">{{ formatCurrency(item.subtotal) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Ringkasan Keuangan -->
+                <div class="flex flex-col gap-2 text-right border-t border-surface-200 dark:border-surface-700 pt-3">
+                    <div class="flex justify-between text-lg font-bold">
+                        <span>Total Bayar:</span>
+                        <span class="text-primary">{{ formatCurrency(selectedOrder.total_amount) }}</span>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Tutup" severity="secondary" text @click="showDetailDialog = false" />
+            </template>
+        </Dialog>
     </div>
 </template>

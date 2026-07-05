@@ -5,7 +5,8 @@ import { onMounted, ref } from 'vue';
 const products = ref(null);
 
 function formatCurrency(value) {
-    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    if (value != null) return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    return '-';
 }
 
 onMounted(() => {

@@ -25,24 +25,18 @@ function setChartData() {
         labels: labels,
         datasets: [
             {
-                type: 'line',
+                type: 'bar',
                 label: 'Penjualan (IDR)',
-                borderColor: documentStyle.getPropertyValue('--p-green-500'),
                 backgroundColor: documentStyle.getPropertyValue('--p-green-500'),
-                borderWidth: 2,
-                fill: false,
-                tension: 0.4,
                 data: salesData,
+                borderRadius: 4
             },
             {
-                type: 'line',
+                type: 'bar',
                 label: 'Pengeluaran (IDR)',
-                borderColor: documentStyle.getPropertyValue('--p-red-500'),
                 backgroundColor: documentStyle.getPropertyValue('--p-red-500'),
-                borderWidth: 2,
-                fill: false,
-                tension: 0.4,
                 data: expensesData,
+                borderRadius: 4
             },
             {
                 type: 'bar',
@@ -128,6 +122,6 @@ onMounted(() => {
 <template>
     <div class="card">
         <div class="font-semibold text-xl mb-4">Grafik Perbandingan Keuangan</div>
-        <Chart type="line" :data="chartData" :options="chartOptions" class="h-80" />
+        <Chart type="bar" :data="chartData" :options="chartOptions" class="h-80" />
     </div>
 </template>

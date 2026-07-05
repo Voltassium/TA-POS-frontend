@@ -11,9 +11,6 @@ export interface Order {
     staff_id: string;
     staff_name: string;
     total_amount: number;
-    discount_type: string | null;
-    discount_value: number;
-    discount_amount: number;
     status: OrderStatus;
     created_at: string;
     updated_at: string;
@@ -26,6 +23,7 @@ export interface OrderItem {
     product_name?: string;
     quantity: number;
     price: number;
+    unit_price: number;
     subtotal: number;
     served_qty: number;
 }

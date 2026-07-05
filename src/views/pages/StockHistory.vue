@@ -74,10 +74,12 @@ async function exportExcel() {
     try {
         const response = await stockHistoryApi.list({ page: 1, page_size: 10000 });
         exportToExcel(response.data, [
+            { header: 'Tanggal', key: 'created_at', width: 22, format: (v: string) => formatDate(v) },
             { header: 'Produk', key: 'product_name', width: 25 },
+            { header: 'Stok Awal', key: 'initial_stock', width: 12 },
             { header: 'Perubahan', key: 'change', width: 12, format: (v: number) => v > 0 ? `+${v}` : String(v) },
-            { header: 'Alasan', key: 'reason', width: 35, format: (v: string) => translateReason(v) },
-            { header: 'Tanggal', key: 'created_at', width: 22, format: (v: string) => formatDate(v) }
+            { header: 'Stok Akhir', key: 'final_stock', width: 12 },
+            { header: 'Alasan', key: 'reason', width: 35, format: (v: string) => translateReason(v) }
         ], 'Riwayat_Stok');
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
     } catch {
@@ -131,34 +133,48 @@ onMounted(() => {
             >
                 <template #header>
                     <div class="flex flex-wrap gap-2 items-center justify-end">
-                        <IconField>
-                            <InputIcon>
-                                <i class="pi pi-search" />
-                            </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
-                        </IconField>
-                        <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" />
+                        <div class="flex items-center gap-2">
+                            <IconField>
+                                <InputIcon>
+                                    <i class="pi pi-search" />
+                                </InputIcon>
+                                <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
+                            </IconField>
+                            <div class="w-8 h-8 flex items-center justify-center">
+                                <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" class="w-8 h-8 !p-0" />
+                            </div>
+                        </div>
                     </div>
                 </template>
                 <template #empty> Tidak ada riwayat stok ditemukan. </template>
+                <Column field="created_at" header="Tanggal" style="min-width: 12rem">
+                    <template #body="{ data }">
+                        {{ formatDate(data.created_at) }}
+                    </template>
+                </Column>
                 <Column field="product_name" header="Produk" style="min-width: 10rem">
                     <template #body="{ data }">
                         {{ data.product_name }}
                     </template>
                 </Column>
-                <Column field="change" header="Perubahan" style="min-width: 12rem">
+                <Column field="initial_stock" header="Stok Awal" style="min-width: 8rem">
+                    <template #body="{ data }">
+                        {{ data.initial_stock }}
+                    </template>
+                </Column>
+                <Column field="change" header="Perubahan" style="min-width: 8rem">
                     <template #body="{ data }">
                         <Tag :value="getChangeText(data.change)" :severity="getChangeLabel(data.change)" />
+                    </template>
+                </Column>
+                <Column field="final_stock" header="Stok Akhir" style="min-width: 8rem">
+                    <template #body="{ data }">
+                        {{ data.final_stock }}
                     </template>
                 </Column>
                 <Column field="reason" header="Alasan" style="min-width: 12rem">
                     <template #body="{ data }">
                         {{ translateReason(data.reason) }}
-                    </template>
-                </Column>
-                <Column field="created_at" header="Tanggal" style="min-width: 12rem">
-                    <template #body="{ data }">
-                        {{ formatDate(data.created_at) }}
                     </template>
                 </Column>
             </DataTable>

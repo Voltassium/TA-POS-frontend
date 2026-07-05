@@ -25,7 +25,7 @@ const submitted = ref(false);
 const saving = ref(false);
 const payingSaving = ref(false);
 
-const statusFilter = ref<string | null>(null);
+const statusFilter = ref<string | null>('New');
 const searchQuery = ref<string>('');
 const lazyParams = ref({
     page: 1,
@@ -53,13 +53,21 @@ const paymentMethodOptions = ref([
 ]);
 
 const productOptions = computed(() => {
-    return productStore.products.map(p => ({
-        label: `${p.name} — ${formatCurrency(p.price)}`,
-        value: p,
-        product_id: p.id,
-        product_name: p.name,
-        price: p.price
-    }));
+    return productStore.products
+        .filter(p => {
+            if (!p.is_available) return false;
+            if (p.stock <= 0) return false;
+            return true;
+        })
+        .map(p => ({
+            label: `${p.name} — ${formatCurrency(p.price)}`,
+            value: p,
+            product_id: p.id,
+            product_name: p.name,
+            price: p.price,
+            stock: p.stock,
+            product_type: p.product_type
+        }));
 });
 
 const orderTotal = computed(() => {
@@ -141,14 +149,29 @@ function addProductToOrder() {
     if (!selectedProduct.value) return;
 
     const existing = orderProducts.value.find(item => item.product_id === selectedProduct.value.product_id);
+    const currentQty = existing ? existing.quantity : 0;
+    const newQty = currentQty + selectedQuantity.value;
+
+    if (newQty > selectedProduct.value.stock) {
+        toast.add({
+            severity: 'error',
+            summary: 'Stok Kurang',
+            detail: `Stok ${selectedProduct.value.product_name} tidak mencukupi (Sisa: ${selectedProduct.value.stock})`,
+            life: 3000
+        });
+        return;
+    }
+
     if (existing) {
-        existing.quantity += selectedQuantity.value;
+        existing.quantity = newQty;
     } else {
         orderProducts.value.push({
             product_id: selectedProduct.value.product_id,
             product_name: selectedProduct.value.product_name,
             price: selectedProduct.value.price,
-            quantity: selectedQuantity.value
+            quantity: selectedQuantity.value,
+            stock: selectedProduct.value.stock,
+            product_type: selectedProduct.value.product_type
         });
     }
 
@@ -285,7 +308,7 @@ function getStatusLabel(status: string) {
 }
 
 function formatCurrency(value: number) {
-    if (value != null) return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+    if (value != null) return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
     return '-';
 }
 
@@ -311,7 +334,7 @@ function printReceipt() {
         items: (data.items || []).map(item => ({
             product_name: item.product_name || `Produk #${item.product_id}`,
             quantity: item.quantity,
-            unit_price: item.price,
+            unit_price: item.unit_price || item.price,
             subtotal: item.subtotal
         })),
         payment: data.payment ? {
@@ -386,7 +409,7 @@ onUnmounted(() => {
 
             <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
                 <div v-for="ord in orderStore.orders" :key="ord.id" class="col-span-1">
-                    <Card class="h-full flex flex-col">
+                    <Card class="h-full flex flex-col cursor-pointer hover:shadow-lg transition-all duration-300" @click="viewOrderDetail(ord)">
                         <template #title>
                             <div class="flex justify-between items-center">
                                 <span>{{ ord.order_code }}</span>
@@ -408,14 +431,13 @@ onUnmounted(() => {
                         </template>
                         <template #footer>
                             <div class="flex gap-2 justify-end mt-auto pt-4">
-                                <Button icon="pi pi-eye" outlined rounded @click="viewOrderDetail(ord)" v-tooltip.top="'Lihat Detail'" />
                                 <Button
                                     v-if="ord.status === 'New'"
                                     icon="pi pi-wallet"
                                     outlined
                                     rounded
                                     severity="success"
-                                    @click="openPaymentDialog(ord)"
+                                    @click.stop="openPaymentDialog(ord)"
                                     v-tooltip.top="'Bayar'"
                                 />
                                 <Button
@@ -424,7 +446,7 @@ onUnmounted(() => {
                                     outlined
                                     rounded
                                     severity="danger"
-                                    @click="confirmCancelOrder(ord)"
+                                    @click.stop="confirmCancelOrder(ord)"
                                     v-tooltip.top="'Batalkan'"
                                 />
                             </div>
@@ -447,7 +469,7 @@ onUnmounted(() => {
         <Dialog v-model:visible="orderDialog" :style="{ width: '650px' }" header="Pesanan Baru" :modal="true">
             <div class="flex flex-col gap-4">
                 <div>
-                    <label for="customer_name" class="block font-bold mb-2">Nama Pelanggan <span class="text-surface-400 font-normal text-sm">(opsional)</span></label>
+                    <label for="customer_name" class="block font-bold mb-2">Nama Pelanggan <span class="text-surface-400 font-normal text-sm"></span></label>
                     <InputText id="customer_name" v-model="order.customer_name" placeholder="Masukkan nama pelanggan" fluid />
                 </div>
                 <div>
@@ -478,14 +500,19 @@ onUnmounted(() => {
                             </template>
                             <template #option="slotProps">
                                 <div class="flex items-center justify-between w-full">
-                                    <div>{{ slotProps.option.product_name }}</div>
+                                    <div>
+                                        <span>{{ slotProps.option.product_name }}</span>
+                                        <span class="text-xs font-semibold px-2 py-0.5 rounded ml-2 bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
+                                            Stok: {{ slotProps.option.stock }}
+                                        </span>
+                                    </div>
                                     <div class="font-bold text-primary">{{ formatCurrency(slotProps.option.price) }}</div>
                                 </div>
                             </template>
                         </Select>
                         <Button icon="pi pi-plus" severity="secondary" label="Tambah" @click="addProductToOrder" :disabled="!selectedProduct" />
                     </div>
-
+ 
                     <transition-group name="list" tag="div">
                         <div v-for="(item, index) in orderProducts" :key="item.product_id" class="flex items-center justify-between p-3 mb-2 border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 rounded-lg transition-all duration-300">
                             <div class="flex-1">
@@ -498,7 +525,7 @@ onUnmounted(() => {
                                 <div class="flex items-center gap-2 bg-surface-100 dark:bg-surface-700 rounded-full p-1">
                                     <Button icon="pi pi-minus" severity="secondary" rounded text size="small" @click="item.quantity > 1 ? item.quantity-- : null" :disabled="item.quantity <= 1" class="h-8 w-8 p-0" />
                                     <span class="font-bold w-6 text-center">{{ item.quantity }}</span>
-                                    <Button icon="pi pi-plus" severity="secondary" rounded text size="small" @click="item.quantity++" class="h-8 w-8 p-0" />
+                                    <Button icon="pi pi-plus" severity="secondary" rounded text size="small" @click="item.quantity++" :disabled="item.quantity >= item.stock" class="h-8 w-8 p-0" />
                                 </div>
                                 <div class="w-24 text-right">
                                     <span class="font-semibold text-primary">{{ formatCurrency(item.price * item.quantity) }}</span>

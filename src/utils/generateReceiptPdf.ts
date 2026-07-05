@@ -26,7 +26,7 @@ export interface ReceiptData {
 }
 
 function formatCurrency(value: number): string {
-    return (value ?? 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+    return (value ?? 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function formatDate(dateStr: string): string {

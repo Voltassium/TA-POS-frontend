@@ -273,9 +273,18 @@ router.beforeEach((to) => {
         return { path: '/auth/login' };
     }
 
+    const userRole = getRoleFromToken(token!) ?? '';
+
+    // If accessing root '/' and user is logged in, redirect them to their default path
+    if (to.path === '/') {
+        const defaultPath = ROLE_DEFAULT_PATH[userRole];
+        if (defaultPath && defaultPath !== '/') {
+            return { path: defaultPath };
+        }
+    }
+
     const requiredRoles = to.meta?.roles as string[] | undefined;
     if (requiredRoles && requiredRoles.length > 0) {
-        const userRole = getRoleFromToken(token!) ?? '';
         if (!requiredRoles.includes(userRole)) {
             return { path: '/auth/access' };
         }

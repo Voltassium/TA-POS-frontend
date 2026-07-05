@@ -6,6 +6,8 @@ export interface StockHistory {
     product_id: number;
     product_name: string;
     change: number;
+    initial_stock: number;
+    final_stock: number;
     reason: string;
     created_at: string;
 }
