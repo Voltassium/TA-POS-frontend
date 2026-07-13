@@ -55,6 +55,11 @@ export const productApi = {
         return data;
     },
 
+    async restock(id: string, payload: { harga_beli: number; jumlah_stok: number }) {
+        const { data } = await api.post(`/products/${id}/restock`, payload);
+        return data;
+    },
+
     async remove(id: string) {
         const { data } = await api.delete(`/products/${id}`);
         return data;

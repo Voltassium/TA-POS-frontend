@@ -32,6 +32,14 @@ const lazyParams = ref<any>({
 const showDetailDialog = ref(false);
 const selectedProduct = ref<Product | null>(null);
 
+const restockDialog = ref(false);
+const submittedRestock = ref(false);
+const restockProductData = ref<Record<string, any>>({});
+const restockForm = ref({
+    harga_beli: null as number | null,
+    jumlah_stok: null as number | null
+});
+
 function onRowClick(event: { data: Product }) {
     selectedProduct.value = event.data;
     showDetailDialog.value = true;
@@ -50,6 +58,49 @@ function onDeleteFromDetail() {
         const prod = selectedProduct.value;
         showDetailDialog.value = false;
         confirmDeleteProduct(prod);
+    }
+}
+
+function onRestockFromDetail() {
+    if (selectedProduct.value) {
+        const prod = selectedProduct.value;
+        showDetailDialog.value = false;
+        openRestockDialog(prod);
+    }
+}
+
+function openRestockDialog(prod: Product) {
+    restockProductData.value = prod;
+    restockForm.value = {
+        harga_beli: prod.harga_beli || null,
+        jumlah_stok: null
+    };
+    submittedRestock.value = false;
+    restockDialog.value = true;
+}
+
+function hideRestockDialog() {
+    restockDialog.value = false;
+    submittedRestock.value = false;
+}
+
+async function saveRestock() {
+    submittedRestock.value = true;
+
+    if (restockForm.value.harga_beli == null || restockForm.value.harga_beli <= 0) return;
+    if (restockForm.value.jumlah_stok == null || restockForm.value.jumlah_stok <= 0) return;
+
+    try {
+        await productStore.restockProduct(restockProductData.value.id, {
+            harga_beli: restockForm.value.harga_beli,
+            jumlah_stok: restockForm.value.jumlah_stok
+        });
+
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Stok berhasil ditambahkan (Kulakan)', life: 3000 });
+        restockDialog.value = false;
+        await loadProducts();
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal melakukan pembelian stok', life: 3000 });
     }
 }
 
@@ -139,10 +190,10 @@ async function saveProduct() {
             category_id: product.value.category_id,
             product_type: 'Kulakan' as ProductType,
             sku: product.value.sku || null,
-            harga_beli: product.value.harga_beli ?? null,
+            harga_beli: product.value.id ? (product.value.harga_beli ?? null) : null,
             name: product.value.name,
             price: product.value.price,
-            stock: product.value.stock ?? 0,
+            stock: product.value.id ? (product.value.stock ?? 0) : 0,
             is_available: product.value.is_available ?? true
         };
 
@@ -272,6 +323,11 @@ async function exportExcel() {
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
                     </template>
                 </Column>
+                <Column header="Aksi" style="min-width: 10rem">
+                    <template #body="slotProps">
+                        <Button label="Beli Stok" icon="pi pi-shopping-cart" severity="primary" size="small" @click.stop="openRestockDialog(slotProps.data)" />
+                    </template>
+                </Column>
             </DataTable>
         </div>
 
@@ -331,6 +387,14 @@ async function exportExcel() {
                 <div class="flex justify-between w-full">
                     <div class="flex gap-2">
                         <Button
+                            id="btn-restock-detail"
+                            label="Beli Stok"
+                            icon="pi pi-shopping-cart"
+                            severity="primary"
+                            outlined
+                            @click="onRestockFromDetail"
+                        />
+                        <Button
                             id="btn-edit-detail"
                             label="Edit"
                             icon="pi pi-pencil"
@@ -381,20 +445,12 @@ async function exportExcel() {
                 </div>
 
                 <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-6">
+                    <div class="col-span-12">
                         <label for="price" class="block font-bold mb-3">Harga Jual</label>
                         <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :invalid="submitted && (product.price == null || product.price < 0)" fluid />
                         <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga jual wajib diisi.</small>
                     </div>
-                    <div v-if="isKulakan" class="col-span-6">
-                        <label for="harga_beli" class="block font-bold mb-3">Harga Beli</label>
-                        <InputNumber id="harga_beli" v-model="product.harga_beli" mode="currency" currency="IDR" locale="id-ID" fluid />
-                    </div>
-                    <div :class="product.id ? 'col-span-6' : 'col-span-12'">
-                        <label for="stock" class="block font-bold mb-3">Stok</label>
-                        <InputNumber id="stock" v-model="product.stock" fluid />
-                    </div>
-                    <div v-if="product.id" class="col-span-6">
+                    <div v-if="product.id" class="col-span-12">
                         <label for="is_available" class="block font-bold mb-3">Ketersediaan</label>
                         <ToggleSwitch id="is_available" v-model="product.is_available" />
                     </div>
@@ -415,6 +471,32 @@ async function exportExcel() {
             <template #footer>
                 <Button label="Tidak" icon="pi pi-times" text @click="deleteProductDialog = false" />
                 <Button label="Ya, Hapus" icon="pi pi-check" severity="danger" @click="deleteProduct" />
+            </template>
+        </Dialog>
+
+        <!-- Dialog: Beli Stok (Restock) -->
+        <Dialog v-model:visible="restockDialog" :style="{ width: '450px' }" header="Beli Stok Baru (Kulakan)" :modal="true">
+            <div class="flex flex-col gap-6">
+                <div class="p-4 bg-surface-50 dark:bg-surface-800 rounded-lg">
+                    <p class="font-semibold text-lg m-0">{{ restockProductData.name }}</p>
+                    <p class="text-surface-500 text-sm mt-1 mb-0" v-if="restockProductData.sku">SKU: {{ restockProductData.sku }}</p>
+                    <p class="text-surface-500 text-sm mt-1 mb-0">Stok Saat Ini: {{ restockProductData.stock }}</p>
+                </div>
+                <div>
+                    <label for="restock_harga_beli" class="block font-bold mb-3">Harga Beli per Unit (Rp)</label>
+                    <InputNumber id="restock_harga_beli" v-model="restockForm.harga_beli" mode="currency" currency="IDR" locale="id-ID" :invalid="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" fluid />
+                    <small v-if="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" class="text-red-500">Harga beli wajib lebih dari 0.</small>
+                </div>
+                <div>
+                    <label for="restock_jumlah" class="block font-bold mb-3">Jumlah Stok yang Dibeli</label>
+                    <InputNumber id="restock_jumlah" v-model="restockForm.jumlah_stok" :min="1" :invalid="submittedRestock && (restockForm.jumlah_stok == null || restockForm.jumlah_stok <= 0)" fluid />
+                    <small v-if="submittedRestock && (restockForm.jumlah_stok == null || restockForm.jumlah_stok <= 0)" class="text-red-500">Jumlah stok wajib minimal 1.</small>
+                </div>
+            </div>
+
+            <template #footer>
+                <Button label="Batal" icon="pi pi-times" text @click="hideRestockDialog" />
+                <Button label="Beli Stok" icon="pi pi-check" @click="saveRestock" />
             </template>
         </Dialog>
     </div>

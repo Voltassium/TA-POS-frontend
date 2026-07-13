@@ -64,7 +64,7 @@ function formatCurrency(value: number) {
         <div class="card mb-0">
             <div class="flex justify-between mb-4">
                 <div>
-                    <span class="block text-muted-color font-medium mb-4">Laba Bersih (P&L)</span>
+                    <span class="block text-muted-color font-medium mb-4">Keuntungan</span>
                     <div class="text-surface-900 dark:text-surface-0 font-medium text-xl" :class="{'text-red-500': props.stats?.total_profit < 0, 'text-green-500': props.stats?.total_profit > 0}">{{ formatCurrency(props.stats?.total_profit || 0) }}</div>
                 </div>
                 <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-border" style="width: 2.5rem; height: 2.5rem">

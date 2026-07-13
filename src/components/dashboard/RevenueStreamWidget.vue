@@ -40,7 +40,7 @@ function setChartData() {
             },
             {
                 type: 'bar',
-                label: 'Laba Bersih (IDR)',
+                label: 'Keuntungan',
                 backgroundColor: documentStyle.getPropertyValue('--p-blue-500'),
                 data: profitData,
                 borderRadius: 4

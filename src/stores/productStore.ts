@@ -42,6 +42,10 @@ export const useProductStore = defineStore('product', {
             await productApi.update(id, payload);
         },
 
+        async restockProduct(id: string, payload: { harga_beli: number; jumlah_stok: number }) {
+            await productApi.restock(id, payload);
+        },
+
         async deleteProduct(id: string) {
             await productApi.remove(id);
         }
