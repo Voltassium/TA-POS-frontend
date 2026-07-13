@@ -239,19 +239,19 @@ async function exportExcel() {
 
                 <template #empty> Tidak ada produk ditemukan. </template>
 
-                <Column field="sku" header="SKU" sortable style="min-width: 8rem">
+                <Column field="sku" header="SKU" style="min-width: 8rem">
                     <template #body="slotProps">
                         {{ slotProps.data.sku || '-' }}
                     </template>
                 </Column>
-                <Column field="name" header="Nama" sortable style="min-width: 14rem"></Column>
-                <Column field="category_name" header="Kategori" sortable style="min-width: 10rem"></Column>
-                <Column field="price" header="Harga Jual (Rp)" sortable style="min-width: 8rem; text-align: right">
+                <Column field="name" header="Nama" style="min-width: 14rem"></Column>
+                <Column field="category_name" header="Kategori" style="min-width: 10rem"></Column>
+                <Column field="price" header="Harga Jual (Rp)" style="min-width: 8rem; text-align: right">
                     <template #body="slotProps">
                         {{ formatNumber(slotProps.data.price) }}
                     </template>
                 </Column>
-                <Column field="created_at" header="Dibuat" sortable style="min-width: 12rem">
+                <Column field="created_at" header="Dibuat" style="min-width: 12rem">
                     <template #body="slotProps">
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
                     </template>

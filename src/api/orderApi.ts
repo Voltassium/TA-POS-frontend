@@ -44,6 +44,8 @@ export interface Payment {
 export interface OrderListParams extends PaginationParams {
     status?: OrderStatus;
     exclude_status?: OrderStatus;
+    start_date?: string;
+    end_date?: string;
 }
 
 export interface CreateOrderPayload {

@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { useLayout } from '@/layout/composables/layout';
-import { computed } from 'vue';
+import { useAuthStore } from '@/stores/authStore';
+import { computed, onMounted } from 'vue';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
 
 const { layoutConfig, layoutState, hideMobileMenu } = useLayout();
+const authStore = useAuthStore();
+
+onMounted(async () => {
+    try {
+        await authStore.initSession();
+    } catch {
+    }
+});
 
 const containerClass = computed(() => {
     return {

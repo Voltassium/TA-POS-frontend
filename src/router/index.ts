@@ -241,29 +241,13 @@ const router = createRouter({
 
 const publicPaths = ['/auth/login', '/auth/register', '/auth/access', '/auth/error', '/pages/notfound', '/landing'];
 
-/**
- * Decode JWT payload tanpa verifikasi signature.
- * Digunakan untuk membaca role dari token secara cepat di guard.
- */
-function getRoleFromToken(token: string): string | null {
-    try {
-        const parts = token.split('.');
-        if (parts.length !== 3) return null;
-        const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        const decoded = JSON.parse(atob(payload)) as Record<string, unknown>;
-        return (decoded.role as string) ?? null;
-    } catch {
-        return null;
-    }
-}
-
 router.beforeEach((to) => {
-    const token = localStorage.getItem('access_token');
-    const isAuthenticated = !!token;
+    const userRole = localStorage.getItem('user_role');
+    const isAuthenticated = !!userRole;
 
     if (publicPaths.includes(to.path)) {
         if ((to.path === '/auth/login' || to.path === '/auth/register') && isAuthenticated) {
-            const role = getRoleFromToken(token!) ?? 'staff';
+            const role = userRole ?? 'staff';
             return { path: ROLE_DEFAULT_PATH[role] ?? '/' };
         }
         return;
@@ -273,11 +257,8 @@ router.beforeEach((to) => {
         return { path: '/auth/login' };
     }
 
-    const userRole = getRoleFromToken(token!) ?? '';
-
-    // If accessing root '/' and user is logged in, redirect them to their default path
     if (to.path === '/') {
-        const defaultPath = ROLE_DEFAULT_PATH[userRole];
+        const defaultPath = ROLE_DEFAULT_PATH[userRole ?? ''];
         if (defaultPath && defaultPath !== '/') {
             return { path: defaultPath };
         }
@@ -285,7 +266,7 @@ router.beforeEach((to) => {
 
     const requiredRoles = to.meta?.roles as string[] | undefined;
     if (requiredRoles && requiredRoles.length > 0) {
-        if (!requiredRoles.includes(userRole)) {
+        if (!requiredRoles.includes(userRole ?? '')) {
             return { path: '/auth/access' };
         }
     }

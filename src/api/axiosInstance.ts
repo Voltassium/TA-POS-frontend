@@ -5,19 +5,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/v1';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true'
     }
 });
 
-// ─── Request interceptor — attach access token ───────────────────────────────
+// ─── Request interceptor — attach access token ───────────────────────────────s
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
         return config;
     },
     (error) => Promise.reject(error)
@@ -46,19 +43,15 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+        if (originalRequest.url?.includes('/authentications/login')) {
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
-            const accessToken = localStorage.getItem('access_token');
-            const refreshToken = localStorage.getItem('refresh_token');
-
-            if (!accessToken && !refreshToken) {
-                return Promise.reject(error);
-            }
-
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
-                }).then((token) => {
-                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                }).then(() => {
                     return api(originalRequest);
                 });
             }
@@ -66,29 +59,19 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             isRefreshing = true;
 
-            if (!refreshToken) {
-                isRefreshing = false;
-                localStorage.removeItem('access_token');
-                return Promise.reject(error);
-            }
-
             try {
-                const { data } = await axios.post(`${API_BASE_URL}/authentications/refresh-token`, {
-                    refresh_token: refreshToken
-                }, {
+                await axios.post(`${API_BASE_URL}/authentications/refresh-token`, {}, {
+                    withCredentials: true,
                     headers: {
                         'ngrok-skip-browser-warning': 'true'
                     }
                 });
-                const newAccessToken = data.data.access_token;
-                localStorage.setItem('access_token', newAccessToken);
-                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-                processQueue(null, newAccessToken);
+                
+                processQueue(null, null);
                 return api(originalRequest);
             } catch (refreshError) {
                 processQueue(refreshError, null);
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('user_role');
                 window.location.href = '/auth/login';
                 return Promise.reject(refreshError);
             } finally {

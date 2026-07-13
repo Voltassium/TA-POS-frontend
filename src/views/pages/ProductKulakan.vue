@@ -19,6 +19,8 @@ const productDialog = ref(false);
 const deleteProductDialog = ref(false);
 const product = ref<Record<string, any>>({});
 const submitted = ref(false);
+const duplicateName = ref(false);
+const duplicateSku = ref(false);
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
@@ -70,7 +72,7 @@ function onRestockFromDetail() {
 }
 
 function openRestockDialog(prod: Product) {
-    restockProductData.value = prod;
+    restockProductData.value = { ...prod, _originalPrice: prod.price };
     restockForm.value = {
         harga_beli: prod.harga_beli || null,
         jumlah_stok: null
@@ -95,6 +97,17 @@ async function saveRestock() {
             harga_beli: restockForm.value.harga_beli,
             jumlah_stok: restockForm.value.jumlah_stok
         });
+
+        if (restockProductData.value.price != null && restockProductData.value.price !== restockProductData.value._originalPrice) {
+            await productStore.updateProduct(restockProductData.value.id, {
+                price: restockProductData.value.price,
+                name: restockProductData.value.name,
+                category_id: restockProductData.value.category_id,
+                product_type: 'Kulakan' as any,
+                sku: restockProductData.value.sku || null,
+                is_available: restockProductData.value.is_available
+            });
+        }
 
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Stok berhasil ditambahkan (Kulakan)', life: 3000 });
         restockDialog.value = false;
@@ -156,6 +169,36 @@ function openNew() {
 function hideDialog() {
     productDialog.value = false;
     submitted.value = false;
+    duplicateName.value = false;
+    duplicateSku.value = false;
+}
+
+async function validateDuplicates(): Promise<boolean> {
+    // Hanya validasi duplikasi saat membuat produk baru (bukan edit)
+    if (product.value.id) return true;
+
+    duplicateName.value = false;
+    duplicateSku.value = false;
+
+    try {
+        // Ambil semua produk Kulakan untuk validasi
+        const allProducts = await productApi.list({ page: 1, page_size: 10000, product_type: 'Kulakan' });
+        const existing = allProducts.data;
+
+        const inputName = (product.value.name || '').trim().toLowerCase();
+        const inputSku = (product.value.sku || '').trim().toLowerCase();
+
+        if (inputName) {
+            duplicateName.value = existing.some((p: any) => p.name.trim().toLowerCase() === inputName);
+        }
+        if (inputSku) {
+            duplicateSku.value = existing.some((p: any) => (p.sku || '').trim().toLowerCase() === inputSku);
+        }
+
+        return !duplicateName.value && !duplicateSku.value;
+    } catch {
+        return true; // Jika gagal fetch, izinkan lanjut (validasi backend tetap berjalan)
+    }
 }
 
 function editProduct(prod: Product) {
@@ -183,7 +226,11 @@ async function saveProduct() {
 
     if (!product.value.name?.trim()) return;
     if (!product.value.category_id) return;
-    if (product.value.price == null || product.value.price < 0) return;
+    // Harga jual hanya wajib saat edit
+    if (product.value.id && (product.value.price == null || product.value.price < 0)) return;
+
+    const isUnique = await validateDuplicates();
+    if (!isUnique) return;
 
     try {
         const payload = {
@@ -294,31 +341,33 @@ async function exportExcel() {
 
                 <template #empty> Tidak ada produk ditemukan. </template>
 
-                <Column field="sku" header="SKU" sortable style="min-width: 8rem">
+                <Column field="sku" header="SKU" style="min-width: 8rem">
                     <template #body="slotProps">
                         {{ slotProps.data.sku || '-' }}
                     </template>
                 </Column>
-                <Column field="name" header="Nama" sortable style="min-width: 14rem"></Column>
-                <Column field="category_name" header="Kategori" sortable style="min-width: 10rem"></Column>
+                <Column field="name" header="Nama" style="min-width: 14rem"></Column>
+                <Column field="category_name" header="Kategori" style="min-width: 10rem"></Column>
 
-                <Column field="price" header="Harga Jual (Rp)" sortable style="min-width: 8rem; text-align: right">
+                <Column field="price" header="Harga Jual (Rp)" style="min-width: 8rem; text-align: right">
                     <template #body="slotProps">
                         {{ formatNumber(slotProps.data.price) }}
                     </template>
                 </Column>
-                <Column field="harga_beli" header="Harga Beli" sortable style="min-width: 8rem">
+                <Column field="harga_beli" header="Harga Beli (Rp)" style="min-width: 8rem" alignHeader="right" bodyClass="text-right">
                     <template #body="slotProps">
-                        {{ slotProps.data.harga_beli ? formatCurrency(slotProps.data.harga_beli) : '-' }}
+                        <div class="text-right w-full">
+                            {{ slotProps.data.harga_beli ? formatNumber(slotProps.data.harga_beli) : '-' }}
+                        </div>
                     </template>
                 </Column>
-                <Column field="stock" header="Stok" sortable style="min-width: 8rem"></Column>
-                <Column field="is_available" header="Ketersediaan" sortable style="min-width: 8rem">
+                <Column field="stock" header="Stok" style="min-width: 8rem"></Column>
+                <Column field="is_available" header="Ketersediaan" style="min-width: 8rem">
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.is_available ? 'Tersedia' : 'Habis'" :severity="slotProps.data.is_available ? 'success' : 'danger'" />
                     </template>
                 </Column>
-                <Column field="created_at" header="Dibuat" sortable style="min-width: 12rem">
+                <Column field="created_at" header="Dibuat" style="min-width: 12rem">
                     <template #body="slotProps">
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
                     </template>
@@ -421,12 +470,14 @@ async function exportExcel() {
             <div class="flex flex-col gap-6">
                 <div>
                     <label for="name" class="block font-bold mb-3">Nama</label>
-                    <InputText id="name" v-model.trim="product.name" required autofocus :invalid="submitted && !product.name" fluid />
+                    <InputText id="name" v-model.trim="product.name" required autofocus :invalid="(submitted && !product.name) || duplicateName" fluid @input="duplicateName = false" />
                     <small v-if="submitted && !product.name" class="text-red-500">Nama wajib diisi.</small>
+                    <small v-else-if="duplicateName" class="text-red-500">Nama produk sudah ada. Gunakan nama yang berbeda.</small>
                 </div>
                 <div>
                     <label for="sku" class="block font-bold mb-3">SKU</label>
-                    <InputText id="sku" v-model.trim="product.sku" fluid />
+                    <InputText id="sku" v-model.trim="product.sku" :invalid="duplicateSku" fluid @input="duplicateSku = false" />
+                    <small v-if="duplicateSku" class="text-red-500">SKU sudah digunakan produk lain.</small>
                 </div>
 
                 <div>
@@ -445,14 +496,10 @@ async function exportExcel() {
                 </div>
 
                 <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-12">
+                    <div v-if="product.id" class="col-span-12">
                         <label for="price" class="block font-bold mb-3">Harga Jual</label>
                         <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :invalid="submitted && (product.price == null || product.price < 0)" fluid />
                         <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga jual wajib diisi.</small>
-                    </div>
-                    <div v-if="product.id" class="col-span-12">
-                        <label for="is_available" class="block font-bold mb-3">Ketersediaan</label>
-                        <ToggleSwitch id="is_available" v-model="product.is_available" />
                     </div>
                 </div>
             </div>
@@ -481,11 +528,17 @@ async function exportExcel() {
                     <p class="font-semibold text-lg m-0">{{ restockProductData.name }}</p>
                     <p class="text-surface-500 text-sm mt-1 mb-0" v-if="restockProductData.sku">SKU: {{ restockProductData.sku }}</p>
                     <p class="text-surface-500 text-sm mt-1 mb-0">Stok Saat Ini: {{ restockProductData.stock }}</p>
+                    <p class="text-surface-500 text-sm mt-1 mb-0">Harga Beli Saat Ini: {{ formatCurrency(restockProductData.harga_beli) }}</p>
+                    <p class="text-surface-500 text-sm mt-1 mb-0">Harga Jual Saat Ini: {{ formatCurrency(restockProductData._originalPrice) }}</p>
                 </div>
                 <div>
                     <label for="restock_harga_beli" class="block font-bold mb-3">Harga Beli per Unit (Rp)</label>
-                    <InputNumber id="restock_harga_beli" v-model="restockForm.harga_beli" mode="currency" currency="IDR" locale="id-ID" :invalid="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" fluid />
+                    <InputNumber id="restock_harga_beli" v-model="restockForm.harga_beli" mode="currency" currency="IDR" locale="id-ID" :disabled="restockProductData.stock > 0" :invalid="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" fluid />
                     <small v-if="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" class="text-red-500">Harga beli wajib lebih dari 0.</small>
+                </div>
+                <div>
+                    <label for="restock_harga_jual" class="block font-bold mb-3">Harga Jual per Unit (Rp)</label>
+                    <InputNumber id="restock_harga_jual" v-model="restockProductData.price" mode="currency" currency="IDR" locale="id-ID" fluid />
                 </div>
                 <div>
                     <label for="restock_jumlah" class="block font-bold mb-3">Jumlah Stok yang Dibeli</label>

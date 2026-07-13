@@ -4,9 +4,12 @@ import { useRegisterSW } from 'virtual:pwa-register/vue';
 const { needRefresh, updateServiceWorker } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
         if (registration) {
-            setInterval(() => {
-                registration.update();
-            }, 60 * 60 * 1000);
+            setInterval(
+                () => {
+                    registration.update();
+                },
+                60 * 60 * 1000
+            );
         }
     }
 });
@@ -27,12 +30,8 @@ function close() {
                 </div>
             </div>
             <div class="pwa-toast-actions">
-                <button class="pwa-btn pwa-btn-primary" @click="updateServiceWorker()">
-                    Perbarui
-                </button>
-                <button class="pwa-btn pwa-btn-text" @click="close">
-                    Nanti
-                </button>
+                <button class="pwa-btn pwa-btn-primary" @click="updateServiceWorker()">Perbarui</button>
+                <button class="pwa-btn pwa-btn-text" @click="close">Nanti</button>
             </div>
         </div>
     </transition>
@@ -47,7 +46,9 @@ function close() {
     background: var(--p-surface-0, #ffffff);
     border: 1px solid var(--p-surface-200, #e2e8f0);
     border-radius: 0.75rem;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    box-shadow:
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.1);
     padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
@@ -136,11 +137,23 @@ function close() {
 }
 
 @keyframes pwa-slide-up {
-    from { opacity: 0; transform: translateY(1rem); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(1rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 @keyframes pwa-slide-down {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(1rem); }
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(1rem);
+    }
 }
 </style>

@@ -173,8 +173,8 @@ async function exportExcel() {
 
                 <template #empty> Tidak ada kategori ditemukan. </template>
 
-                <Column field="name" header="Nama" sortable style="min-width: 16rem"></Column>
-                <Column field="created_at" header="Dibuat" sortable style="min-width: 12rem">
+                <Column field="name" header="Nama" style="min-width: 16rem"></Column>
+                <Column field="created_at" header="Dibuat" style="min-width: 12rem">
                     <template #body="slotProps">
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
                     </template>

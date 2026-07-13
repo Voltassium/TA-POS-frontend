@@ -34,7 +34,7 @@ const handleRegister = async () => {
 
     loading.value = true;
     try {
-        await authStore.register(email.value, password.value, 'Owner', storeName.value);
+        await authStore.register(email.value, password.value, 'owner', storeName.value);
         await authStore.login(email.value, password.value);
         
         toast.add({ severity: 'success', summary: 'Registrasi Berhasil', detail: 'Akun dan Toko berhasil dibuat. Selamat datang!', life: 3000 });

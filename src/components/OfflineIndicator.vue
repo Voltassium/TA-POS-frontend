@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useOrderStore } from '@/stores/orderStore';
+import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -14,8 +15,12 @@ function handleOffline() {
 }
 
 async function handleOnline() {
-    isOffline.value = false;
-    await autoSync();
+    try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/v1';
+        await axios.get(`${apiUrl}/ping`, { timeout: 3000 });
+        isOffline.value = false;
+        await autoSync();
+    } catch {}
 }
 
 async function autoSync() {
@@ -168,11 +173,23 @@ onUnmounted(() => {
 }
 
 @keyframes banner-slide-down {
-    from { opacity: 0; transform: translateY(-100%); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 @keyframes banner-slide-up {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(-100%); }
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-100%);
+    }
 }
 </style>

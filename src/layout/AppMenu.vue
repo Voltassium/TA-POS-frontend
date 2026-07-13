@@ -88,12 +88,6 @@ const allMenuItems = computed(() => [
                 icon: 'pi pi-fw pi-users',
                 to: '/pages/manajemen-akun',
                 roles: ['superadmin', 'owner']
-            },
-            {
-                label: 'Keluar (Logout)',
-                icon: 'pi pi-fw pi-sign-out',
-                command: handleLogout,
-                class: 'text-red-500 hover:text-red-600'
             }
         ]
     }

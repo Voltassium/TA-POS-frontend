@@ -10,4 +10,3 @@ import OfflineIndicator from '@/components/OfflineIndicator.vue';
 </template>
 
 <style scoped></style>
-

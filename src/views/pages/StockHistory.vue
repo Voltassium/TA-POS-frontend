@@ -138,7 +138,7 @@ onMounted(() => {
                                 <InputIcon>
                                     <i class="pi pi-search" />
                                 </InputIcon>
-                                <InputText v-model="filters['global'].value" placeholder="Cari..." @input="onSearchInput" @keydown.enter="onSearchInput" />
+                                <InputText v-model="filters['global'].value" placeholder="Cari Produk..." @input="onSearchInput" @keydown.enter="onSearchInput" />
                             </IconField>
                             <div class="w-8 h-8 flex items-center justify-center">
                                 <Button v-if="filters['global'].value" icon="pi pi-times" severity="danger" text rounded @click="clearSearch" v-tooltip.top="'Hapus Pencarian'" class="w-8 h-8 !p-0" />

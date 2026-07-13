@@ -43,6 +43,10 @@ const formatCurrency = (value: number) => {
     return (value ?? 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
 
+const formatNumber = (value: number) => {
+    return (value ?? 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
+
 const getStatusSeverity = (status: string) => {
     switch (status) {
         case 'Paid':
@@ -191,9 +195,11 @@ onMounted(() => {
                         {{ data.customer_name || '-' }}
                     </template>
                 </Column>
-                <Column field="total_amount" header="Total Harga" style="min-width: 12rem">
+                <Column field="total_amount" header="Total Harga (Rp)" style="min-width: 12rem" alignHeader="right" bodyClass="text-right">
                     <template #body="{ data }">
-                        {{ formatCurrency(data.total_amount) }}
+                        <div class="text-right w-full">
+                            {{ formatNumber(data.total_amount) }}
+                        </div>
                     </template>
                 </Column>
                 <Column field="status" header="Status" style="min-width: 12rem">

@@ -44,3 +44,42 @@ export function exportToExcel(data: any[], columns: ExcelColumn[], filename: str
     // Generate and download the file
     XLSX.writeFile(wb, `${filename}.xlsx`);
 }
+
+export interface ExcelSheet {
+    name: string;
+    data: any[];
+    columns: ExcelColumn[];
+}
+
+/**
+ * Export multiple sheets to a single Excel file.
+ * @param sheets - Array of sheet configurations
+ * @param filename - Output filename (without extension)
+ */
+export function exportMultipleSheetsToExcel(sheets: ExcelSheet[], filename: string): void {
+    const wb = XLSX.utils.book_new();
+
+    sheets.forEach(sheet => {
+        const headers = sheet.columns.map(col => col.header);
+        const rows = sheet.data.map(row =>
+            sheet.columns.map(col => {
+                const value = row[col.key];
+                if (col.format) {
+                    return col.format(value, row);
+                }
+                return value ?? '';
+            })
+        );
+
+        const wsData = [headers, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        ws['!cols'] = sheet.columns.map(col => ({
+            wch: col.width || Math.max(col.header.length + 2, 15)
+        }));
+
+        XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+    });
+
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+}

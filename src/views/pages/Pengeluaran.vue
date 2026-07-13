@@ -86,6 +86,11 @@ function formatCurrency(value: number) {
     return '-';
 }
 
+function formatNumber(value: number) {
+    if (value != null) return value.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    return '-';
+}
+
 function formatDate(dateStr: string) {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', {
         weekday: 'long',
@@ -269,12 +274,12 @@ async function exportExcel() {
 
                 <template #empty> Tidak ada pengeluaran ditemukan. </template>
 
-                <Column field="tanggal" header="Tanggal" sortable style="min-width: 14rem">
+                <Column field="tanggal" header="Tanggal" style="min-width: 14rem">
                     <template #body="slotProps">
                         {{ formatDate(slotProps.data.tanggal) }}
                     </template>
                 </Column>
-                <Column field="category" header="Kategori" sortable style="min-width: 10rem">
+                <Column field="category" header="Kategori" style="min-width: 10rem">
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.category" severity="secondary" />
                     </template>
@@ -284,12 +289,14 @@ async function exportExcel() {
                         {{ slotProps.data.description || '-' }}
                     </template>
                 </Column>
-                <Column field="amount" header="Jumlah" sortable style="min-width: 10rem">
+                <Column field="amount" header="Jumlah (Rp)" style="min-width: 10rem" alignHeader="right" bodyClass="text-right">
                     <template #body="slotProps">
-                        <span class="font-semibold text-red-500">{{ formatCurrency(slotProps.data.amount) }}</span>
+                        <div class="text-right w-full">
+                            <span class="font-semibold text-red-500">{{ formatNumber(slotProps.data.amount) }}</span>
+                        </div>
                     </template>
                 </Column>
-                <Column field="created_at" header="Dicatat" sortable style="min-width: 10rem">
+                <Column field="created_at" header="Dicatat" style="min-width: 10rem">
                     <template #body="slotProps">
                         {{ new Date(slotProps.data.created_at).toLocaleDateString('id-ID') }}
                     </template>

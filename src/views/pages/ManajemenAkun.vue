@@ -61,7 +61,10 @@ const roleOptions = computed(() => {
         { label: 'Staff Kasir', value: 'staff' },
         { label: 'Chef / Koki', value: 'chef' }
     ];
-    if (authStore.userRole === 'owner') {
+    if (authStore.userRole === 'superadmin') {
+        base.push({ label: 'Pemilik Toko (Owner)', value: 'owner' });
+        base.push({ label: 'Superadmin', value: 'superadmin' });
+    } else if (authStore.userRole === 'owner') {
         base.push({ label: 'Superadmin', value: 'superadmin' });
     }
     return base;
@@ -228,7 +231,7 @@ onMounted(() => {
                     </div>
                 </template>
 
-                <Column field="email" header="Email" sortable>
+                <Column field="email" header="Email">
                     <template #body="{ data }">
                         <span class="font-medium">{{ data.email }}</span>
                     </template>
@@ -334,7 +337,7 @@ onMounted(() => {
                         id="create-password"
                         v-model="createForm.password"
                         placeholder="Minimal 8 karakter"
-                        :feedback="true"
+                        :feedback="false"
                         toggleMask
                         class="w-full"
                         inputClass="w-full"
