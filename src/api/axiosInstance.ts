@@ -47,7 +47,15 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // ── Network error (offline / timeout): NO HTTP response at all ──────────
+        // Do NOT redirect to login — the user is likely offline and their
+        // session cookie is still valid. Let the calling code handle the error.
+        if (!error.response) {
+            return Promise.reject(error);
+        }
+
+        // ── 401 Unauthorized: session expired, try to refresh ─────────────────
+        if (error.response.status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
@@ -71,8 +79,13 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 processQueue(refreshError, null);
-                localStorage.removeItem('user_role');
-                window.location.href = '/auth/login';
+                // Only clear session if the refresh endpoint itself returned a response
+                // (meaning the server explicitly rejected the token, not a network issue)
+                const refreshAxiosErr = refreshError as AxiosError;
+                if (refreshAxiosErr.response) {
+                    localStorage.removeItem('user_role');
+                    window.location.href = '/auth/login';
+                }
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;

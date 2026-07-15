@@ -3,16 +3,19 @@ import type { Product, ProductType } from '@/api/productApi';
 import { productApi } from '@/api/productApi';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore } from '@/stores/productStore';
+import { useOnlineStatus } from '@/composables/useOnlineStatus';
 import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
+const { isOffline } = useOnlineStatus();
 
 const dt = ref();
 const productDialog = ref(false);
@@ -47,6 +50,15 @@ function onEditFromDetail() {
 
 function onDeleteFromDetail() {
     if (selectedProduct.value) {
+        if (isOffline.value) {
+            toast.add({
+                severity: 'warn',
+                summary: 'Tidak Tersedia Offline',
+                detail: 'Operasi hapus tidak dapat dilakukan saat offline. Hubungkan kembali ke internet.',
+                life: 4000
+            });
+            return;
+        }
         const prod = selectedProduct.value;
         showDetailDialog.value = false;
         confirmDeleteProduct(prod);
@@ -72,7 +84,7 @@ async function loadProducts() {
         lazyParams.value.search = filters.value.global.value || undefined;
         await productStore.fetchProducts(lazyParams.value);
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar produk', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat daftar produk'), life: 3000 });
     }
 }
 
@@ -113,6 +125,15 @@ function editProduct(prod: Product) {
 }
 
 function confirmDeleteProduct(prod: Product) {
+    if (isOffline.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Tidak Tersedia Offline',
+            detail: 'Operasi hapus tidak dapat dilakukan saat offline. Hubungkan kembali ke internet.',
+            life: 4000
+        });
+        return;
+    }
     product.value = prod;
     deleteProductDialog.value = true;
 }
@@ -147,18 +168,30 @@ async function saveProduct() {
         };
 
         if (product.value.id) {
-            await productStore.updateProduct(product.value.id, payload);
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Produk berhasil diperbarui', life: 3000 });
+            const result = await productStore.updateProduct(product.value.id, payload);
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({ 
+                severity: isOfflineResult ? 'warn' : 'success', 
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil', 
+                detail: isOfflineResult ? 'Produk diperbarui secara lokal dan akan disinkronkan saat online.' : 'Produk berhasil diperbarui', 
+                life: 3000 
+            });
         } else {
-            await productStore.createProduct(payload);
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Produk berhasil ditambahkan', life: 3000 });
+            const result = await productStore.createProduct(payload);
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({ 
+                severity: isOfflineResult ? 'warn' : 'success', 
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil', 
+                detail: isOfflineResult ? 'Produk ditambahkan secara lokal dan akan disinkronkan saat online.' : 'Produk berhasil ditambahkan', 
+                life: 3000 
+            });
         }
 
         productDialog.value = false;
         product.value = {};
-        await loadProducts();
+        if (!isOffline.value) await loadProducts();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menyimpan produk', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menyimpan produk'), life: 3000 });
     }
 }
 
@@ -170,7 +203,7 @@ async function deleteProduct() {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Produk berhasil dihapus', life: 3000 });
         await loadProducts();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menghapus produk', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menghapus produk'), life: 3000 });
     }
 }
 
@@ -185,8 +218,8 @@ async function exportExcel() {
             { header: 'Dibuat', key: 'created_at', width: 18, format: (v: string) => new Date(v).toLocaleDateString('id-ID') }
         ], 'Produk_Olahan');
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
-    } catch {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal mengekspor data'), life: 3000 });
     }
 }
 </script>

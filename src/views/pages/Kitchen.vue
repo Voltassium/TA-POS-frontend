@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { OrderDetail, OrderItem } from '@/api/orderApi';
 import { orderApi } from '@/api/orderApi';
+import { useOrderStore } from '@/stores/orderStore';
+import { loadCache, saveCache } from '@/utils/offlineDb';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, onUnmounted, ref } from 'vue';
 
 const toast = useToast();
+const orderStore = useOrderStore();
 const orders = ref<OrderDetail[]>([]);
 const loading = ref(false);
 const interval = ref<any>(null);
@@ -22,11 +25,17 @@ onUnmounted(() => {
 
 async function loadKitchenOrders() {
     loading.value = true;
+    const cacheKey = 'kitchen-orders';
     try {
         const result = await orderApi.list({ page: 1, page_size: 50, status: 'Paid' });
         const details = await Promise.all(result.data.map((o: any) => orderApi.getById(o.id)));
         orders.value = details;
+        await saveCache(cacheKey, details);
     } catch {
+        const cached = await loadCache<OrderDetail[]>(cacheKey);
+        if (cached) {
+            orders.value = cached;
+        }
     } finally {
         loading.value = false;
     }
@@ -53,13 +62,24 @@ async function incrementServed(order: OrderDetail, item: OrderItem) {
     if ((item.served_qty || 0) >= item.quantity) return;
     const newQty = (item.served_qty || 0) + 1;
     try {
-        const updated = await orderApi.updateItemServedQty(order.id, item.id, newQty);
-        if (updated.status === 'Completed') {
+        const updated = (await orderStore.updateItemServedQty(order.id, item.id, newQty)) as any;
+        const isOfflineResult = updated && typeof updated === 'object' && 'offline' in updated;
+        const actualUpdated = isOfflineResult && typeof updated !== 'boolean' && 'id' in updated ? (updated as OrderDetail) : (updated as OrderDetail);
+        
+        if (actualUpdated && !isOfflineResult && ('status' in actualUpdated) && actualUpdated.status === 'Completed') {
             orders.value = orders.value.filter((o) => o.id !== order.id);
             toast.add({ severity: 'success', summary: 'Selesai!', detail: `Pesanan ${order.order_code} selesai dan siap disajikan!`, life: 3000 });
-        } else {
+        } else if (actualUpdated && 'id' in actualUpdated) {
             const idx = orders.value.findIndex((o) => o.id === order.id);
-            if (idx !== -1) orders.value[idx] = updated;
+            if (idx !== -1) orders.value[idx] = actualUpdated as OrderDetail;
+            if (isOfflineResult) {
+                toast.add({ severity: 'warn', summary: 'Offline', detail: 'Update disimpan lokal', life: 2000 });
+                // Check locally if all items are served
+                const allServed = (actualUpdated as OrderDetail).items.every(i => (i.served_qty || 0) >= i.quantity);
+                if (allServed) {
+                    orders.value = orders.value.filter((o) => o.id !== order.id);
+                }
+            }
         }
     } catch {
         toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memperbarui item', life: 3000 });
@@ -70,9 +90,17 @@ async function decrementServed(order: OrderDetail, item: OrderItem) {
     if ((item.served_qty || 0) <= 0) return;
     const newQty = (item.served_qty || 0) - 1;
     try {
-        const updated = await orderApi.updateItemServedQty(order.id, item.id, newQty);
-        const idx = orders.value.findIndex((o) => o.id === order.id);
-        if (idx !== -1) orders.value[idx] = updated;
+        const updated = (await orderStore.updateItemServedQty(order.id, item.id, newQty)) as any;
+        const isOfflineResult = updated && typeof updated === 'object' && 'offline' in updated;
+        const actualUpdated = isOfflineResult && typeof updated !== 'boolean' && 'id' in updated ? (updated as OrderDetail) : (updated as OrderDetail);
+        
+        if (actualUpdated && 'id' in actualUpdated) {
+            const idx = orders.value.findIndex((o) => o.id === order.id);
+            if (idx !== -1) orders.value[idx] = actualUpdated as OrderDetail;
+            if (isOfflineResult) {
+                toast.add({ severity: 'warn', summary: 'Offline', detail: 'Update disimpan lokal', life: 2000 });
+            }
+        }
     } catch {
         toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memperbarui item', life: 3000 });
     }
@@ -80,13 +108,22 @@ async function decrementServed(order: OrderDetail, item: OrderItem) {
 
 async function markAllServed(order: OrderDetail) {
     try {
+        let isOfflineResult = false;
         for (const item of order.items) {
             if ((item.served_qty || 0) < item.quantity) {
-                await orderApi.updateItemServedQty(order.id, item.id, item.quantity);
+                const res = await orderStore.updateItemServedQty(order.id, item.id, item.quantity);
+                if (res && typeof res === 'object' && 'offline' in res) {
+                    isOfflineResult = true;
+                }
             }
         }
         orders.value = orders.value.filter((o) => o.id !== order.id);
-        toast.add({ severity: 'success', summary: 'Selesai!', detail: `Pesanan ${order.order_code} selesai dan siap disajikan!`, life: 3000 });
+        toast.add({ 
+            severity: isOfflineResult ? 'warn' : 'success', 
+            summary: isOfflineResult ? 'Offline' : 'Selesai!', 
+            detail: isOfflineResult ? `Pesanan ${order.order_code} diselesaikan secara lokal.` : `Pesanan ${order.order_code} selesai dan siap disajikan!`, 
+            life: 3000 
+        });
     } catch {
         toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memperbarui status pesanan', life: 3000 });
         await loadKitchenOrders();

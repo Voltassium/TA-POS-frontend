@@ -3,16 +3,19 @@ import type { Product, ProductType } from '@/api/productApi';
 import { productApi } from '@/api/productApi';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore } from '@/stores/productStore';
+import { useOnlineStatus } from '@/composables/useOnlineStatus';
 import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
+const { isOffline } = useOnlineStatus();
 
 const dt = ref();
 const productDialog = ref(false);
@@ -57,6 +60,15 @@ function onEditFromDetail() {
 
 function onDeleteFromDetail() {
     if (selectedProduct.value) {
+        if (isOffline.value) {
+            toast.add({
+                severity: 'warn',
+                summary: 'Tidak Tersedia Offline',
+                detail: 'Operasi hapus tidak dapat dilakukan saat offline. Hubungkan kembali ke internet.',
+                life: 4000
+            });
+            return;
+        }
         const prod = selectedProduct.value;
         showDetailDialog.value = false;
         confirmDeleteProduct(prod);
@@ -93,13 +105,17 @@ async function saveRestock() {
     if (restockForm.value.jumlah_stok == null || restockForm.value.jumlah_stok <= 0) return;
 
     try {
-        await productStore.restockProduct(restockProductData.value.id, {
+        let isOfflineResult = false;
+        const result = await productStore.restockProduct(restockProductData.value.id, {
             harga_beli: restockForm.value.harga_beli,
             jumlah_stok: restockForm.value.jumlah_stok
         });
+        if (result && typeof result === 'object' && 'offline' in result) {
+            isOfflineResult = true;
+        }
 
         if (restockProductData.value.price != null && restockProductData.value.price !== restockProductData.value._originalPrice) {
-            await productStore.updateProduct(restockProductData.value.id, {
+            const updateResult = await productStore.updateProduct(restockProductData.value.id, {
                 price: restockProductData.value.price,
                 name: restockProductData.value.name,
                 category_id: restockProductData.value.category_id,
@@ -107,13 +123,21 @@ async function saveRestock() {
                 sku: restockProductData.value.sku || null,
                 is_available: restockProductData.value.is_available
             });
+            if (updateResult && typeof updateResult === 'object' && 'offline' in updateResult) {
+                isOfflineResult = true;
+            }
         }
 
-        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Stok berhasil ditambahkan (Kulakan)', life: 3000 });
+        toast.add({ 
+            severity: isOfflineResult ? 'warn' : 'success', 
+            summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil', 
+            detail: isOfflineResult ? 'Stok ditambahkan secara lokal dan akan disinkronkan saat online.' : 'Stok berhasil ditambahkan (Kulakan)', 
+            life: 3000 
+        });
         restockDialog.value = false;
-        await loadProducts();
+        if (!isOffline.value) await loadProducts();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal melakukan pembelian stok', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal melakukan pembelian stok'), life: 3000 });
     }
 }
 
@@ -136,7 +160,7 @@ async function loadProducts() {
         lazyParams.value.search = filters.value.global.value || undefined;
         await productStore.fetchProducts(lazyParams.value);
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar produk', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat daftar produk'), life: 3000 });
     }
 }
 
@@ -207,6 +231,15 @@ function editProduct(prod: Product) {
 }
 
 function confirmDeleteProduct(prod: Product) {
+    if (isOffline.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Tidak Tersedia Offline',
+            detail: 'Operasi hapus tidak dapat dilakukan saat offline. Hubungkan kembali ke internet.',
+            life: 4000
+        });
+        return;
+    }
     product.value = prod;
     deleteProductDialog.value = true;
 }
@@ -221,13 +254,37 @@ function formatNumber(value: number) {
     return '-';
 }
 
+const minusWarnings = ref({
+    price: false,
+    restockHargaBeli: false,
+    restockHargaJual: false,
+    restockJumlah: false
+});
+
+function preventMinus(event: KeyboardEvent, field: 'price' | 'restockHargaBeli' | 'restockHargaJual' | 'restockJumlah') {
+    if (event.key === '-' || event.code === 'Minus' || event.keyCode === 189) {
+        event.preventDefault();
+        minusWarnings.value[field] = true;
+        setTimeout(() => {
+            minusWarnings.value[field] = false;
+        }, 3000);
+    } else {
+        minusWarnings.value[field] = false;
+    }
+}
+
 async function saveProduct() {
     submitted.value = true;
 
     if (!product.value.name?.trim()) return;
     if (!product.value.category_id) return;
-    // Harga jual hanya wajib saat edit
-    if (product.value.id && (product.value.price == null || product.value.price < 0)) return;
+    if (product.value.id) {
+        if (product.value.price == null) return;
+        if (product.value.price < 0) {
+            toast.add({ severity: 'error', summary: 'Validasi Gagal', detail: 'Harga jual tidak boleh bernilai negatif/minus.', life: 3000 });
+            return;
+        }
+    }
 
     const isUnique = await validateDuplicates();
     if (!isUnique) return;
@@ -245,18 +302,30 @@ async function saveProduct() {
         };
 
         if (product.value.id) {
-            await productStore.updateProduct(product.value.id, payload);
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Produk berhasil diperbarui', life: 3000 });
+            const result = await productStore.updateProduct(product.value.id, payload);
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({ 
+                severity: isOfflineResult ? 'warn' : 'success', 
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil', 
+                detail: isOfflineResult ? 'Produk diperbarui secara lokal dan akan disinkronkan saat online.' : 'Produk berhasil diperbarui', 
+                life: 3000 
+            });
         } else {
-            await productStore.createProduct(payload);
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Produk berhasil ditambahkan', life: 3000 });
+            const result = await productStore.createProduct(payload);
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({ 
+                severity: isOfflineResult ? 'warn' : 'success', 
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil', 
+                detail: isOfflineResult ? 'Produk ditambahkan secara lokal dan akan disinkronkan saat online.' : 'Produk berhasil ditambahkan', 
+                life: 3000 
+            });
         }
 
         productDialog.value = false;
         product.value = {};
-        await loadProducts();
+        if (!isOffline.value) await loadProducts();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menyimpan produk', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menyimpan produk'), life: 3000 });
     }
 }
 
@@ -268,7 +337,7 @@ async function deleteProduct() {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Produk berhasil dihapus', life: 3000 });
         await loadProducts();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menghapus produk', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menghapus produk'), life: 3000 });
     }
 }
 
@@ -287,8 +356,8 @@ async function exportExcel() {
             { header: 'Dibuat', key: 'created_at', width: 18, format: (v: string) => new Date(v).toLocaleDateString('id-ID') }
         ], 'Produk_Kulakan');
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
-    } catch {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal mengekspor data'), life: 3000 });
     }
 }
 </script>
@@ -498,8 +567,10 @@ async function exportExcel() {
                 <div class="grid grid-cols-12 gap-4">
                     <div v-if="product.id" class="col-span-12">
                         <label for="price" class="block font-bold mb-3">Harga Jual</label>
-                        <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :invalid="submitted && (product.price == null || product.price < 0)" fluid />
-                        <small v-if="submitted && (product.price == null || product.price < 0)" class="text-red-500">Harga jual wajib diisi.</small>
+                        <InputNumber id="price" v-model="product.price" mode="currency" currency="IDR" locale="id-ID" :min="0" :invalid="submitted && (product.price == null || product.price < 0)" fluid @keydown="preventMinus($event, 'price')" />
+                        <small v-if="minusWarnings.price" class="text-orange-500">Nilai tidak boleh minus/negatif.</small>
+                        <small v-else-if="submitted && product.price == null" class="text-red-500">Harga jual wajib diisi.</small>
+                        <small v-else-if="submitted && product.price < 0" class="text-red-500">Harga jual tidak boleh bernilai negatif/minus.</small>
                     </div>
                 </div>
             </div>
@@ -533,17 +604,20 @@ async function exportExcel() {
                 </div>
                 <div>
                     <label for="restock_harga_beli" class="block font-bold mb-3">Harga Beli per Unit (Rp)</label>
-                    <InputNumber id="restock_harga_beli" v-model="restockForm.harga_beli" mode="currency" currency="IDR" locale="id-ID" :disabled="restockProductData.stock > 0" :invalid="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" fluid />
-                    <small v-if="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" class="text-red-500">Harga beli wajib lebih dari 0.</small>
+                    <InputNumber id="restock_harga_beli" v-model="restockForm.harga_beli" mode="currency" currency="IDR" locale="id-ID" :min="0" :disabled="restockProductData.stock > 0" :invalid="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" fluid @keydown="preventMinus($event, 'restockHargaBeli')" />
+                    <small v-if="minusWarnings.restockHargaBeli" class="text-orange-500">Nilai tidak boleh minus/negatif.</small>
+                    <small v-else-if="submittedRestock && (restockForm.harga_beli == null || restockForm.harga_beli <= 0)" class="text-red-500">Harga beli wajib lebih dari 0.</small>
                 </div>
                 <div>
                     <label for="restock_harga_jual" class="block font-bold mb-3">Harga Jual per Unit (Rp)</label>
-                    <InputNumber id="restock_harga_jual" v-model="restockProductData.price" mode="currency" currency="IDR" locale="id-ID" fluid />
+                    <InputNumber id="restock_harga_jual" v-model="restockProductData.price" mode="currency" currency="IDR" locale="id-ID" :min="0" fluid @keydown="preventMinus($event, 'restockHargaJual')" />
+                    <small v-if="minusWarnings.restockHargaJual" class="text-orange-500">Nilai tidak boleh minus/negatif.</small>
                 </div>
                 <div>
                     <label for="restock_jumlah" class="block font-bold mb-3">Jumlah Stok yang Dibeli</label>
-                    <InputNumber id="restock_jumlah" v-model="restockForm.jumlah_stok" :min="1" :invalid="submittedRestock && (restockForm.jumlah_stok == null || restockForm.jumlah_stok <= 0)" fluid />
-                    <small v-if="submittedRestock && (restockForm.jumlah_stok == null || restockForm.jumlah_stok <= 0)" class="text-red-500">Jumlah stok wajib minimal 1.</small>
+                    <InputNumber id="restock_jumlah" v-model="restockForm.jumlah_stok" :min="1" :invalid="submittedRestock && (restockForm.jumlah_stok == null || restockForm.jumlah_stok <= 0)" fluid @keydown="preventMinus($event, 'restockJumlah')" />
+                    <small v-if="minusWarnings.restockJumlah" class="text-orange-500">Nilai tidak boleh minus/negatif.</small>
+                    <small v-else-if="submittedRestock && (restockForm.jumlah_stok == null || restockForm.jumlah_stok <= 0)" class="text-red-500">Jumlah stok wajib minimal 1.</small>
                 </div>
             </div>
 

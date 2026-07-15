@@ -4,6 +4,7 @@ import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -32,7 +33,7 @@ const loadData = async (event?: any) => {
         stockHistories.value = response.data;
         totalRecords.value = response.total_items;
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat riwayat stok', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat riwayat stok'), life: 3000 });
     } finally {
         loading.value = false;
     }

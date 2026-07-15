@@ -7,6 +7,7 @@ import { useProductStore } from '@/stores/productStore';
 import { generateReceiptPdf } from '@/utils/generateReceiptPdf';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -56,7 +57,7 @@ const productOptions = computed(() => {
     return productStore.products
         .filter(p => {
             if (!p.is_available) return false;
-            if (p.stock <= 0) return false;
+            if (p.product_type?.toLowerCase() !== 'olahan' && p.stock <= 0) return false;
             return true;
         })
         .map(p => ({
@@ -96,7 +97,7 @@ async function loadOrders() {
         }
         await orderStore.fetchOrders(params);
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar pesanan', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat daftar pesanan'), life: 3000 });
     }
 }
 
@@ -152,7 +153,7 @@ function addProductToOrder() {
     const currentQty = existing ? existing.quantity : 0;
     const newQty = currentQty + selectedQuantity.value;
 
-    if (newQty > selectedProduct.value.stock) {
+    if (selectedProduct.value.product_type?.toLowerCase() !== 'olahan' && newQty > selectedProduct.value.stock) {
         toast.add({
             severity: 'error',
             summary: 'Stok Kurang',
@@ -188,7 +189,7 @@ async function viewOrderDetail(ord: Order) {
         await orderStore.fetchOrderDetail(ord.id);
         detailDialog.value = true;
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat detail pesanan', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat detail pesanan'), life: 3000 });
     }
 }
 
@@ -226,7 +227,7 @@ async function submitPayment() {
         paymentDialog.value = false;
         await loadOrders();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memproses pembayaran', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memproses pembayaran'), life: 3000 });
     } finally {
         payingSaving.value = false;
     }
@@ -260,7 +261,7 @@ async function saveOrder() {
         order.value = {};
         await loadOrders();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal membuat pesanan', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal membuat pesanan'), life: 3000 });
     } finally {
         saving.value = false;
     }
@@ -269,10 +270,10 @@ async function saveOrder() {
 async function updateStatus(ord: Order, newStatus: 'New' | 'Paid' | 'Cancelled') {
     try {
         await orderStore.updateOrderStatus(ord.id, newStatus);
-        toast.add({ severity: 'success', summary: 'Berhasil', detail: `Status pesanan diperbarui`, life: 3000 });
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Status pesanan berhasil diperbarui', life: 3000 });
         await loadOrders();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memperbarui status', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memperbarui status'), life: 3000 });
     }
 }
 
@@ -281,10 +282,10 @@ async function cancelOrder() {
         await orderStore.cancelOrder(order.value.id);
         deleteOrderDialog.value = false;
         order.value = {};
-        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Pesanan dibatalkan', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Pesanan berhasil dibatalkan', life: 3000 });
         await loadOrders();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal membatalkan pesanan', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal membatalkan pesanan'), life: 3000 });
     }
 }
 
@@ -481,6 +482,11 @@ onUnmounted(() => {
 
                 <div>
                     <label class="block font-bold mb-2">Tambah Produk</label>
+                    <!-- Cache warning: shown when products are served from IndexedDB (offline) -->
+                    <div v-if="productStore.isFromCache" class="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 mb-3">
+                        <i class="pi pi-exclamation-triangle" />
+                        <span>Data produk dari cache lokal — stok mungkin belum diperbarui.</span>
+                    </div>
                     <div class="flex items-center gap-2 mb-4">
                         <Select
                             v-model="selectedProduct"
@@ -502,7 +508,7 @@ onUnmounted(() => {
                                 <div class="flex items-center justify-between w-full">
                                     <div>
                                         <span>{{ slotProps.option.product_name }}</span>
-                                        <span class="text-xs font-semibold px-2 py-0.5 rounded ml-2 bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
+                                        <span v-if="slotProps.option.product_type?.toLowerCase() !== 'olahan'" class="text-xs font-semibold px-2 py-0.5 rounded ml-2 bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
                                             Stok: {{ slotProps.option.stock }}
                                         </span>
                                     </div>
@@ -525,7 +531,7 @@ onUnmounted(() => {
                                 <div class="flex items-center gap-2 bg-surface-100 dark:bg-surface-700 rounded-full p-1">
                                     <Button icon="pi pi-minus" severity="secondary" rounded text size="small" @click="item.quantity > 1 ? item.quantity-- : null" :disabled="item.quantity <= 1" class="h-8 w-8 p-0" />
                                     <span class="font-bold w-6 text-center">{{ item.quantity }}</span>
-                                    <Button icon="pi pi-plus" severity="secondary" rounded text size="small" @click="item.quantity++" :disabled="item.quantity >= item.stock" class="h-8 w-8 p-0" />
+                                    <Button icon="pi pi-plus" severity="secondary" rounded text size="small" @click="item.quantity++" :disabled="item.product_type?.toLowerCase() !== 'olahan' && item.quantity >= item.stock" class="h-8 w-8 p-0" />
                                 </div>
                                 <div class="w-24 text-right">
                                     <span class="font-semibold text-primary">{{ formatCurrency(item.price * item.quantity) }}</span>

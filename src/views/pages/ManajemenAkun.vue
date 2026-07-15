@@ -3,6 +3,7 @@ import { userApi, type CreateUserByAdminPayload, type UpdateUserPayload, type Us
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -96,8 +97,8 @@ async function loadUsers() {
         const res = await userApi.list({ page: page.value, page_size: pageSize.value });
         users.value = res?.data ?? [];
         totalRecords.value = res?.meta?.total ?? 0;
-    } catch (e: any) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: e?.message ?? 'Gagal memuat daftar akun', life: 3000 });
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(e, 'Gagal memuat daftar akun'), life: 3000 });
     } finally {
         loading.value = false;
     }
@@ -126,9 +127,8 @@ async function submitCreate() {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Akun berhasil didaftarkan', life: 3000 });
         showCreateDialog.value = false;
         await loadUsers();
-    } catch (e: any) {
-        const msg = e?.response?.data?.message ?? e?.message ?? 'Gagal mendaftarkan akun';
-        toast.add({ severity: 'error', summary: 'Gagal', detail: msg, life: 5000 });
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(e, 'Gagal mendaftarkan akun'), life: 5000 });
     } finally {
         createLoading.value = false;
     }
@@ -151,9 +151,8 @@ async function submitEdit() {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Akun berhasil diperbarui', life: 3000 });
         showEditDialog.value = false;
         await loadUsers();
-    } catch (e: any) {
-        const msg = e?.response?.data?.message ?? e?.message ?? 'Gagal memperbarui akun';
-        toast.add({ severity: 'error', summary: 'Gagal', detail: msg, life: 5000 });
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(e, 'Gagal memperbarui akun'), life: 5000 });
     } finally {
         editLoading.value = false;
     }
@@ -173,9 +172,8 @@ async function confirmDelete() {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Akun berhasil dihapus', life: 3000 });
         showDeleteDialog.value = false;
         await loadUsers();
-    } catch (e: any) {
-        const msg = e?.response?.data?.message ?? e?.message ?? 'Gagal menghapus akun';
-        toast.add({ severity: 'error', summary: 'Gagal', detail: msg, life: 5000 });
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(e, 'Gagal menghapus akun'), life: 5000 });
     } finally {
         deleteLoading.value = false;
     }

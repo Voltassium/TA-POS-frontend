@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useOrderStore } from '@/stores/orderStore';
+import { syncAll, getTotalPendingCount } from '@/utils/offlineSync';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, onUnmounted, ref } from 'vue';
@@ -9,6 +10,11 @@ const orderStore = useOrderStore();
 
 const isOffline = ref(!navigator.onLine);
 const syncing = ref(false);
+const totalPending = ref(0);
+
+async function refreshPendingCount() {
+    totalPending.value = await getTotalPendingCount();
+}
 
 function handleOffline() {
     isOffline.value = true;
@@ -24,26 +30,45 @@ async function handleOnline() {
 }
 
 async function autoSync() {
-    if (orderStore.offlineCount === 0) return;
+    await refreshPendingCount();
+    if (totalPending.value === 0) return;
 
     syncing.value = true;
     try {
-        const result = await orderStore.syncPendingOrders();
+        const result = await syncAll();
+        await refreshPendingCount();
+        await orderStore.refreshOfflineCount();
 
-        if (result.synced > 0) {
+        const totalSynced = result.orders.synced + result.mutations.synced;
+        const totalFailed = result.orders.failed + result.mutations.failed;
+        const totalSkipped = result.mutations.skipped;
+
+        if (totalSynced > 0) {
+            const detail =
+                result.mutations.details.filter((d) => d.startsWith('✓')).join('\n') ||
+                `${totalSynced} item berhasil disinkronkan.`;
             toast.add({
                 severity: 'success',
                 summary: 'Sinkronisasi Berhasil',
-                detail: `${result.synced} pesanan offline berhasil dikirim ke server.`,
-                life: 5000
+                detail,
+                life: 6000
             });
         }
 
-        if (result.failed > 0) {
+        if (totalSkipped > 0) {
+            toast.add({
+                severity: 'info',
+                summary: 'Dilewati (Idempoten)',
+                detail: `${totalSkipped} item sudah ada di server, dilewati.`,
+                life: 4000
+            });
+        }
+
+        if (totalFailed > 0) {
             toast.add({
                 severity: 'warn',
-                summary: 'Sinkronisasi Sebagian',
-                detail: `${result.failed} pesanan gagal disinkronkan. Akan dicoba lagi nanti.`,
+                summary: 'Sebagian Gagal',
+                detail: `${totalFailed} item gagal disinkronkan dan dihapus dari antrian.`,
                 life: 5000
             });
         }
@@ -51,7 +76,7 @@ async function autoSync() {
         toast.add({
             severity: 'error',
             summary: 'Gagal Sinkronisasi',
-            detail: 'Terjadi kesalahan saat menyinkronkan pesanan offline.',
+            detail: 'Terjadi kesalahan saat menyinkronkan data offline.',
             life: 5000
         });
     } finally {
@@ -63,8 +88,8 @@ onMounted(async () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    await orderStore.refreshOfflineCount();
-    if (navigator.onLine && orderStore.offlineCount > 0) {
+    await refreshPendingCount();
+    if (navigator.onLine && totalPending.value > 0) {
         await autoSync();
     }
 });
@@ -80,7 +105,7 @@ onUnmounted(() => {
     <transition name="offline-banner">
         <div v-if="isOffline" class="offline-banner" role="status">
             <i class="pi pi-wifi-off offline-icon"></i>
-            <span class="offline-text">Anda sedang offline — pesanan baru akan disimpan lokal</span>
+            <span class="offline-text">Anda sedang offline — data dibaca dari cache, perubahan akan disimpan lokal</span>
         </div>
     </transition>
 
@@ -92,11 +117,11 @@ onUnmounted(() => {
         </div>
     </transition>
 
-    <!-- Pending offline orders badge -->
+    <!-- Pending offline data badge -->
     <transition name="offline-banner">
-        <div v-if="!isOffline && !syncing && orderStore.offlineCount > 0" class="pending-banner" role="status" @click="autoSync">
+        <div v-if="!isOffline && !syncing && totalPending > 0" class="pending-banner" role="status" @click="autoSync">
             <i class="pi pi-cloud-upload pending-icon"></i>
-            <span class="pending-text">{{ orderStore.offlineCount }} pesanan menunggu sinkronisasi</span>
+            <span class="pending-text">{{ totalPending }} item menunggu sinkronisasi</span>
             <button class="pending-sync-btn">Sinkronkan</button>
         </div>
     </transition>

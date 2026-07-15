@@ -5,6 +5,7 @@ import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -33,7 +34,7 @@ const loadData = async (event?: any) => {
         orderHistories.value = response.data;
         totalRecords.value = response.total_items;
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat riwayat pesanan', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat riwayat pesanan'), life: 3000 });
     } finally {
         loading.value = false;
     }
@@ -94,8 +95,8 @@ async function exportExcel() {
             { header: 'Tanggal', key: 'created_at', width: 22, format: (v: string) => formatDate(v) }
         ], 'Riwayat_Pesanan');
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
-    } catch {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal mengekspor data'), life: 3000 });
     }
 }
 
@@ -123,7 +124,7 @@ async function viewOrderDetails(orderId: string) {
         const data = await orderApi.getById(orderId);
         selectedOrder.value = data;
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat detail pesanan', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat detail pesanan'), life: 3000 });
         showDetailDialog.value = false;
     } finally {
         detailLoading.value = false;

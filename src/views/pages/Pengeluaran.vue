@@ -2,14 +2,17 @@
 import type { Pengeluaran } from '@/api/pengeluaranApi';
 import { pengeluaranApi } from '@/api/pengeluaranApi';
 import { usePengeluaranStore } from '@/stores/pengeluaranStore';
+import { useOnlineStatus } from '@/composables/useOnlineStatus';
 import { exportToExcel } from '@/utils/exportExcel';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const store = usePengeluaranStore();
+const { isOffline } = useOnlineStatus();
 
 const dt = ref();
 const itemDialog = ref(false);
@@ -25,13 +28,11 @@ const lazyParams = ref<any>({
 });
 
 const categoryOptions = ref([
-    'Bahan Baku',
+    'Belanja Harian',
     'Gaji Karyawan',
     'Sewa Tempat',
     'Listrik & Air',
-    'Gas & BBM',
     'Perlengkapan',
-    'Perawatan',
     'Transportasi',
     'Marketing',
     'Lainnya'
@@ -45,7 +46,7 @@ async function loadItems() {
     try {
         await store.fetchItems(lazyParams.value);
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar pengeluaran', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat daftar pengeluaran'), life: 3000 });
     }
 }
 
@@ -77,6 +78,15 @@ function editItem(row: Pengeluaran) {
 }
 
 function confirmDeleteItem(row: Pengeluaran) {
+    if (isOffline.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Tidak Tersedia Offline',
+            detail: 'Operasi hapus tidak dapat dilakukan saat offline. Hubungkan kembali ke internet.',
+            life: 4000
+        });
+        return;
+    }
     item.value = row;
     deleteDialog.value = true;
 }
@@ -116,18 +126,34 @@ async function saveItem() {
         };
 
         if (item.value.id) {
-            await store.updateItem(item.value.id, payload);
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Pengeluaran berhasil diperbarui', life: 3000 });
+            const result = await store.updateItem(item.value.id, payload);
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({
+                severity: isOfflineResult ? 'warn' : 'success',
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil',
+                detail: isOfflineResult
+                    ? 'Pengeluaran diperbarui secara lokal dan akan disinkronkan saat online.'
+                    : 'Pengeluaran berhasil diperbarui',
+                life: 3000
+            });
         } else {
-            await store.createItem(payload);
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Pengeluaran berhasil ditambahkan', life: 3000 });
+            const result = await store.createItem(payload);
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({
+                severity: isOfflineResult ? 'warn' : 'success',
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil',
+                detail: isOfflineResult
+                    ? 'Pengeluaran ditambahkan secara lokal dan akan disinkronkan saat online.'
+                    : 'Pengeluaran berhasil ditambahkan',
+                life: 3000
+            });
         }
 
         itemDialog.value = false;
         item.value = {};
-        await loadItems();
+        if (!isOffline.value) await loadItems();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menyimpan pengeluaran', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menyimpan pengeluaran'), life: 3000 });
     }
 }
 
@@ -139,7 +165,7 @@ async function deleteItem() {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Pengeluaran berhasil dihapus', life: 3000 });
         await loadItems();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menghapus pengeluaran', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menghapus pengeluaran'), life: 3000 });
     }
 }
 

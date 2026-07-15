@@ -2,15 +2,18 @@
 import type { Category } from '@/api/categoryApi';
 import { categoryApi } from '@/api/categoryApi';
 import { useCategoryStore } from '@/stores/categoryStore';
+import { useOnlineStatus } from '@/composables/useOnlineStatus';
 import { exportToExcel } from '@/utils/exportExcel';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const toast = useToast();
 const categoryStore = useCategoryStore();
+const { isOffline } = useOnlineStatus();
 
 const dt = ref();
 const categoryDialog = ref(false);
@@ -35,7 +38,7 @@ async function loadCategories() {
         lazyParams.value.search = filters.value.global.value || undefined;
         await categoryStore.fetchCategories(lazyParams.value);
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal memuat daftar kategori', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal memuat daftar kategori'), life: 3000 });
     }
 }
 
@@ -76,6 +79,15 @@ function editCategory(cat: Category) {
 }
 
 function confirmDeleteCategory(cat: Category) {
+    if (isOffline.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Tidak Tersedia Offline',
+            detail: 'Operasi hapus tidak dapat dilakukan saat offline. Hubungkan kembali ke internet.',
+            life: 4000
+        });
+        return;
+    }
     category.value = cat;
     deleteCategoryDialog.value = true;
 }
@@ -87,21 +99,37 @@ async function saveCategory() {
 
     try {
         if (category.value.id) {
-            await categoryStore.updateCategory(category.value.id, {
+            const result = await categoryStore.updateCategory(category.value.id, {
                 name: category.value.name
             });
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Kategori berhasil diperbarui', life: 3000 });
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({
+                severity: isOfflineResult ? 'warn' : 'success',
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil',
+                detail: isOfflineResult
+                    ? 'Kategori diperbarui secara lokal dan akan disinkronkan saat online.'
+                    : 'Kategori berhasil diperbarui',
+                life: 3000
+            });
         } else {
-            await categoryStore.createCategory({
+            const result = await categoryStore.createCategory({
                 name: category.value.name
             });
-            toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Kategori berhasil ditambahkan', life: 3000 });
+            const isOfflineResult = result && typeof result === 'object' && 'offline' in result;
+            toast.add({
+                severity: isOfflineResult ? 'warn' : 'success',
+                summary: isOfflineResult ? 'Disimpan Offline' : 'Berhasil',
+                detail: isOfflineResult
+                    ? 'Kategori ditambahkan secara lokal dan akan disinkronkan saat online.'
+                    : 'Kategori berhasil ditambahkan',
+                life: 3000
+            });
         }
         categoryDialog.value = false;
         category.value = {};
-        await loadCategories();
+        if (!isOffline.value) await loadCategories();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menyimpan kategori', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menyimpan kategori'), life: 3000 });
     }
 }
 
@@ -113,7 +141,7 @@ async function deleteCategory() {
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Kategori berhasil dihapus', life: 3000 });
         await loadCategories();
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal menghapus kategori', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal menghapus kategori'), life: 3000 });
     }
 }
 
@@ -125,8 +153,8 @@ async function exportExcel() {
             { header: 'Dibuat', key: 'created_at', width: 20, format: (v: string) => new Date(v).toLocaleDateString('id-ID') }
         ], 'Kategori');
         toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Data berhasil diekspor', life: 3000 });
-    } catch {
-        toast.add({ severity: 'error', summary: 'Gagal', detail: 'Gagal mengekspor data', life: 3000 });
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: getErrorMessage(error, 'Gagal mengekspor data'), life: 3000 });
     }
 }
 </script>
