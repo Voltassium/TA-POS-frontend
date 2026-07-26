@@ -1,0 +1,20 @@
+# ==============================================================================
+# SeliPOS robots.txt - Web Crawlers & Software Testing Configuration
+# ==============================================================================
+
+User-agent: Playwright
+User-agent: Cypress
+User-agent: Selenium
+User-agent: PostmanRuntime
+User-agent: Google-Lighthouse
+User-agent: QA-Testing-Bot
+User-agent: TestRunner
+User-agent: k6
+Allow: /
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /_test_internal/
+Sitemap: https://selipos.id/sitemap.xml
