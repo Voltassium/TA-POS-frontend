@@ -207,11 +207,6 @@ const router = createRouter({
             ]
         },
         {
-            path: '/landing',
-            name: 'landing',
-            component: () => import('@/views/pages/Landing.vue')
-        },
-        {
             path: '/pages/notfound',
             name: 'notfound',
             component: () => import('@/views/pages/NotFound.vue')
@@ -239,7 +234,7 @@ const router = createRouter({
     ]
 });
 
-const publicPaths = ['/auth/login', '/auth/register', '/auth/access', '/auth/error', '/pages/notfound', '/landing'];
+const publicPaths = ['/auth/login', '/auth/register', '/auth/access', '/auth/error', '/pages/notfound'];
 
 router.beforeEach((to) => {
     const userRole = localStorage.getItem('user_role');
